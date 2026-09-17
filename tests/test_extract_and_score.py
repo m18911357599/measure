@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+import json
+import math
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from extract_source import analyze_text, extract_all, match_globs  # noqa: E402
+from score import (  # noqa: E402
+    clamp,
+    ln_score,
+    score_1_a_1_op,
+    score_3_a_1,
+    score_3_a_5_op,
+    score_5_b_1_op,
+    score_all,
+    score_ratio_lines,
+)
+
+
+class LnScoreTests(unittest.TestCase):
+    def test_bounds(self):
+        self.assertEqual(ln_score(8192, 8192, 65536), 10.0)
+        self.assertEqual(ln_score(65536, 8192, 65536), 0.0)
+        mid = ln_score(32768, 8192, 65536)
+        self.assertTrue(0 < mid < 10)
+
+    def test_cost(self):
+        self.assertEqual(score_ratio_lines(0, 100, 0.3), 10.0)
+        self.assertEqual(score_ratio_lines(30, 100, 0.3), 0.0)
+        self.assertAlmostEqual(score_ratio_lines(15, 100, 0.3), 5.0)
+
+
+class ExtractTests(unittest.TestCase):
+    def test_ascendc_fixture(self):
+        text = (ROOT / "tests/fixtures/ascendc_gelu.cpp").read_text()
+        m = analyze_text(text, "AscendC")
+        self.assertGreater(m["L_total"], 5)
+        self.assertGreater(m["L_dma"], 0)
+        self.assertGreater(m["L_alloc"], 0)
+        self.assertGreater(m["P_src"], 0)
+        self.assertGreaterEqual(m["V_base"], 1)
+        self.assertLess(m["L_head"], m["L_total"])
+
+    def test_superscalar_fixture(self):
+        text = (ROOT / "tests/fixtures/superscalar_matmul.hpp").read_text()
+        m = analyze_text(text, "SuperScalar")
+        self.assertGreater(m["L_dma"], 0)
+        self.assertGreater(m["L_compute"], 0)
+        self.assertGreater(m["N_alive"], 0)
+
+    def test_simt_fixture(self):
+        text = (ROOT / "tests/fixtures/simt_gelu.cu").read_text()
+        m = analyze_text(text, "SIMT")
+        self.assertGreater(m["L_dma"], 0)
+        self.assertGreater(m["L_sync"] + m["L_intra_sync"], 0)
+        self.assertGreater(m["L_alloc"], 0)
+
+    def test_extract_all_from_fixtures(self):
+        fx = ROOT / "tests/fixtures"
+        data = extract_all({
+            "AscendC": str(fx),
+            "SuperScalar": str(fx),
+            "SIMT": str(fx),
+        })
+        a = data["arches"]["AscendC"]["operators"]["1"]["metrics"]
+        self.assertFalse(a["missing"])
+        self.assertGreater(a["L_total"], 0)
+        s = data["arches"]["SuperScalar"]["operators"]["4"]["metrics"]
+        self.assertFalse(s["missing"])
+        t = data["arches"]["SIMT"]["operators"]["1"]["metrics"]
+        self.assertFalse(t["missing"])
+
+
+class ScoreIntegrationTests(unittest.TestCase):
+    def test_hw_align(self):
+        hw = {"buffers": [{"name": "UB", "align_B": 1}, {"name": "L1", "align_B": 64}]}
+        s = score_3_a_1(hw)
+        self.assertAlmostEqual(s, 5.0)
+
+    def test_source_ratio_and_all(self):
+        fx = ROOT / "tests/fixtures"
+        extract = extract_all({
+            "AscendC": str(fx),
+            "SuperScalar": str(fx),
+            "SIMT": str(fx),
+        })
+        m = extract["arches"]["AscendC"]["operators"]["1"]["metrics"]
+        s = score_3_a_5_op(m)
+        self.assertIsNotNone(s)
+        self.assertGreaterEqual(s, 0)
+        self.assertLessEqual(s, 10)
+
+        hw = {
+            "AscendC": {
+                "N": 32,
+                "buffers": [{"name": "UB", "align_B": 32, "cap_KiB": 192}],
+                "pipe_ref": 3,
+                "P_gm2vec": 1,
+                "P_gm2cube": 1,
+                "P_cube2vec": 0,
+                "P_vec2cube": 0,
+                "N_hint": 1,
+                "exc_detected": 8,
+                "exc_defined": 10,
+                "bp_supported": 6,
+                "r_hw": 0.6,
+                "r_simt": 0.2,
+                "r_sw": 0.1,
+                "r_cover": 0.5,
+            },
+            "SuperScalar": {"N": 8, "buffers": [{"name": "UB", "align_B": 1, "cap_KiB": 256}]},
+            "SIMT": {"N": 108, "buffers": [{"name": "smem", "align_B": 16, "cap_KiB": 164}]},
+        }
+        perf = {
+            "AscendC": {
+                "1": {
+                    "p0": 0.97,
+                    "tiers": {
+                        "60%": {"tileSize": 8192, "burstLen": 32, "stride": 1, "coreConc": 1},
+                        "90%": {"tileSize": 16384, "burstLen": 64, "stride": 8, "coreConc": 4},
+                        "99%": {"tileSize": 32768, "burstLen": 128, "stride": 32, "coreConc": 16},
+                    },
+                    "T_fused": 1.0,
+                    "T_no_fused": 1.0,
+                    "P_agent": 0.8,
+                    "P_theory": 1.0,
+                }
+            }
+        }
+        computed = score_all(extract, hw, perf, None)
+        self.assertIn("1.a.1", computed["scores"])
+        self.assertIsNotNone(computed["scores"]["3.a.5"]["AscendC"])
+        self.assertGreater(computed["scores"]["3.a.5"]["AscendC"], 0)
+        self.assertEqual(computed["scores"]["7.a.1"]["AscendC"], 8.0)
+        self.assertEqual(computed["scores"]["7.b.1"]["AscendC"], 5.0)
+        # p0>=95% → 3.a.2 is 10 for op 1; other ops missing so weighted = 10
+        self.assertEqual(computed["scores"]["3.a.2"]["AscendC"], 10.0)
+
+    def test_bandwidth_formula(self):
+        hw = {"N": 64}
+        perf = {
+            "tiers": {
+                "60%": {"tileSize": 8192, "burstLen": 32, "stride": 1, "coreConc": 1},
+                "90%": {"tileSize": 8192, "burstLen": 32, "stride": 1, "coreConc": 1},
+                "99%": {"tileSize": 8192, "burstLen": 32, "stride": 1, "coreConc": 1},
+            }
+        }
+        self.assertAlmostEqual(score_1_a_1_op(hw, perf), 10.0)
+
+
+if __name__ == "__main__":
+    unittest.main()

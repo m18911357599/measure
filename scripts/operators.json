@@ -1,0 +1,315 @@
+{
+  "version": 1,
+  "arches": ["AscendC", "SuperScalar", "SIMT"],
+  "source_roots": {
+    "AscendC": {
+      "repos": [
+        "https://gitcode.com/cann/ops-nn",
+        "https://gitcode.com/cann/ops-math",
+        "https://gitcode.com/cann/ops-transformer"
+      ],
+      "prefer_subdirs": ["op_kernel"],
+      "extensions": [".cpp", ".cc", ".c", ".h", ".hpp", ".cce", ".inl"]
+    },
+    "SuperScalar": {
+      "repos": [
+        "https://github.com/PTO-ISA/SuperNpuBench/tree/ops-20260908/benchmark/one-level-arch/kernels/solution"
+      ],
+      "prefer_subdirs": ["solution", "single_thread"],
+      "extensions": [".hpp", ".h", ".cpp", ".cc", ".c"]
+    },
+    "SIMT": {
+      "repos": ["CUDA (cutlass / cub / custom kernels)"],
+      "prefer_subdirs": [],
+      "extensions": [".cu", ".cuh", ".h", ".hpp", ".cpp"]
+    }
+  },
+  "operators": [
+    {
+      "id": 1,
+      "pattern": "Elementwise · silu/gelu/add",
+      "op": "gelu/silu/add",
+      "weight": 0.0627,
+      "globs": {
+        "AscendC": ["**/gelu*/op_kernel/**", "**/swi_glu*/op_kernel/**", "**/silu*/**", "**/add*/op_kernel/**", "**/foreach_add*/op_kernel/**"],
+        "SuperScalar": ["**/solution/**/element*", "**/single_thread/element_wise/**", "**/element_wise/**"],
+        "SIMT": ["**/*gelu*.cu", "**/*silu*.cu", "**/*elementwise*.cu", "**/*element_wise*.cu"]
+      }
+    },
+    {
+      "id": 2,
+      "pattern": "Broadcast · bias_add",
+      "op": "bias_add",
+      "weight": 0.0206,
+      "globs": {
+        "AscendC": ["**/bias_add*/**", "**/broadcast*/op_kernel/**", "**/add_layer_norm*/op_kernel/**"],
+        "SuperScalar": ["**/single_thread/broadcast/**", "**/broadcast/**"],
+        "SIMT": ["**/*broadcast*.cu", "**/*bias_add*.cu"]
+      }
+    },
+    {
+      "id": 3,
+      "pattern": "Reduction · sum/mean/max",
+      "op": "reduce",
+      "weight": 0.0198,
+      "globs": {
+        "AscendC": ["**/reduce*/op_kernel/**", "**/sum*/op_kernel/**", "**/mean*/op_kernel/**"],
+        "SuperScalar": ["**/single_thread/reduction/**", "**/reduction/**"],
+        "SIMT": ["**/*reduce*.cu", "**/*reduction*.cu"]
+      }
+    },
+    {
+      "id": 4,
+      "pattern": "Contraction · matmul/linear",
+      "op": "Matmul,QuantMatmul",
+      "weight": 0.1552,
+      "globs": {
+        "AscendC": ["**/matmul*/op_kernel/**", "**/quant_matmul*/**", "**/batch_mat_mul*/op_kernel/**", "**/transpose_batch_mat_mul*/op_kernel/**"],
+        "SuperScalar": ["**/solution/matmul_test/**", "**/single_thread/matmul/**", "**/matmul/**"],
+        "SIMT": ["**/*gemm*.cu", "**/*matmul*.cu", "**/cutlass/**/gemm/**"]
+      }
+    },
+    {
+      "id": 5,
+      "pattern": "ArgReduce · argmax/argmin",
+      "op": "argmax",
+      "weight": 0.0201,
+      "globs": {
+        "AscendC": ["**/argmax*/**", "**/argmin*/**"],
+        "SuperScalar": ["**/*argmax*", "**/*argmin*"],
+        "SIMT": ["**/*argmax*.cu", "**/*argmin*.cu"]
+      }
+    },
+    {
+      "id": 6,
+      "pattern": "Layout Transform · View",
+      "op": "ViewCopy",
+      "weight": 0.0395,
+      "globs": {
+        "AscendC": ["**/view_copy*/**", "**/transpose*/op_kernel/**", "**/reshape*/**"],
+        "SuperScalar": ["**/solution/view_copy/**", "**/single_thread/transpose/**", "**/view_copy/**"],
+        "SIMT": ["**/*transpose*.cu", "**/*view_copy*.cu", "**/*layout*.cu"]
+      }
+    },
+    {
+      "id": 7,
+      "pattern": "Padding · pad",
+      "op": "padding",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/pad*/op_kernel/**", "**/padding*/**"],
+        "SuperScalar": ["**/*pad*", "**/padding/**"],
+        "SIMT": ["**/*pad*.cu"]
+      }
+    },
+    {
+      "id": 8,
+      "pattern": "IndexGather · gather/embedding",
+      "op": "GatherV2",
+      "weight": 0.0228,
+      "globs": {
+        "AscendC": ["**/gather*/op_kernel/**", "**/embedding*/op_kernel/**"],
+        "SuperScalar": ["**/solution/gather_v2/**", "**/single_thread/gather/**", "**/gather/**"],
+        "SIMT": ["**/*gather*.cu", "**/*embedding*.cu"]
+      }
+    },
+    {
+      "id": 9,
+      "pattern": "ScatterUpdate · scatter",
+      "op": "scatter",
+      "weight": 0.0197,
+      "globs": {
+        "AscendC": ["**/scatter*/op_kernel/**", "**/index_put*/**"],
+        "SuperScalar": ["**/concat_scatter*", "**/*scatter*"],
+        "SIMT": ["**/*scatter*.cu"]
+      }
+    },
+    {
+      "id": 10,
+      "pattern": "AtomicUpdate · scatter_add",
+      "op": "scatter_add",
+      "weight": 0.0211,
+      "globs": {
+        "AscendC": ["**/inplace_scatter_add*/**", "**/scatter_add*/**", "**/index_add*/**"],
+        "SuperScalar": ["**/*scatter_add*"],
+        "SIMT": ["**/*scatter_add*.cu", "**/*atomic*.cu"]
+      }
+    },
+    {
+      "id": 11,
+      "pattern": "Interpolation · grid_sample",
+      "op": "ResizeBilinearV2",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/resize*/**", "**/upsample*/**", "**/grid_sample*/**"],
+        "SuperScalar": ["**/*resize*", "**/*interp*"],
+        "SIMT": ["**/*resize*.cu", "**/*upsample*.cu", "**/*grid_sample*.cu"]
+      }
+    },
+    {
+      "id": 12,
+      "pattern": "MaskPredicate · where",
+      "op": "where",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": ["**/where*/op_kernel/**", "**/masked*/**", "**/select*/op_kernel/**"],
+        "SuperScalar": ["**/*where*", "**/*mask*"],
+        "SIMT": ["**/*where*.cu", "**/*masked*.cu"]
+      }
+    },
+    {
+      "id": 13,
+      "pattern": "SortSelect · topk/sort",
+      "op": "topk",
+      "weight": 0.0197,
+      "globs": {
+        "AscendC": ["**/topk*/**", "**/sort*/op_kernel/**"],
+        "SuperScalar": ["**/single_thread/sort/**", "**/sort/**", "**/topk/**"],
+        "SIMT": ["**/*topk*.cu", "**/*sort*.cu"]
+      }
+    },
+    {
+      "id": 14,
+      "pattern": "Histogram · bincount",
+      "op": "bincount",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/histogram*/**", "**/bincount*/**", "**/histc*/**"],
+        "SuperScalar": ["**/*hist*", "**/*bincount*"],
+        "SIMT": ["**/*hist*.cu", "**/*bincount*.cu"]
+      }
+    },
+    {
+      "id": 15,
+      "pattern": "SlidingWindow · conv2d/pool",
+      "op": "Conv2dV2",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": ["**/conv*/op_kernel/**", "**/pool*/op_kernel/**"],
+        "SuperScalar": ["**/single_thread/conv2d/**", "**/conv2d/**"],
+        "SIMT": ["**/*conv*.cu", "**/*pool*.cu"]
+      }
+    },
+    {
+      "id": 16,
+      "pattern": "ControlFlow · cond/while",
+      "op": "ctcloss",
+      "weight": 0.0196,
+      "globs": {
+        "AscendC": ["**/ctc*/**", "**/control/**"],
+        "SuperScalar": ["**/single_thread/control/**", "**/control/**"],
+        "SIMT": ["**/*ctc*.cu", "**/*control*.cu"]
+      }
+    },
+    {
+      "id": 17,
+      "pattern": "Recurrence · cumsum/lstm",
+      "op": "cumsum",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/cumsum*/**", "**/lstm*/**"],
+        "SuperScalar": ["**/*cumsum*", "**/reduction/**/*cumsum*"],
+        "SIMT": ["**/*cumsum*.cu", "**/*lstm*.cu"]
+      }
+    },
+    {
+      "id": 18,
+      "pattern": "MegaKernel · MegaMoe",
+      "op": "MegaMoe",
+      "weight": 0.0433,
+      "globs": {
+        "AscendC": ["**/moe*/op_kernel/**", "**/mega_moe*/**", "**/swiglu_gated_mlp*/**"],
+        "SuperScalar": ["**/solution/mega_moe/**", "**/solution/group_token*/**", "**/mega_moe/**"],
+        "SIMT": ["**/*moe*.cu", "**/*mega_moe*.cu"]
+      }
+    },
+    {
+      "id": 19,
+      "pattern": "Spectral · fft/dct",
+      "op": "fft",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/fft*/**", "**/dct*/**"],
+        "SuperScalar": ["**/*fft*", "**/*dct*"],
+        "SIMT": ["**/*fft*.cu", "**/*dct*.cu"]
+      }
+    },
+    {
+      "id": 20,
+      "pattern": "DynamicShape · 动态batch",
+      "op": "dynamic",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": ["**/nonzero*/**", "**/unique*/**"],
+        "SuperScalar": ["**/*dynamic*", "**/*nonzero*"],
+        "SIMT": ["**/*nonzero*.cu", "**/*unique*.cu"]
+      }
+    },
+    {
+      "id": 21,
+      "pattern": "RandomSampling · dropout",
+      "op": "dropout",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": ["**/dropout*/**", "**/multinomial*/**"],
+        "SuperScalar": ["**/*dropout*"],
+        "SIMT": ["**/*dropout*.cu"]
+      }
+    },
+    {
+      "id": 22,
+      "pattern": "Norm 类",
+      "op": "RmsNorm,GroupNormGrad",
+      "weight": 0.0303,
+      "globs": {
+        "AscendC": ["**/rms_norm*/op_kernel/**", "**/group_norm*/**", "**/layer_norm*/op_kernel/**"],
+        "SuperScalar": ["**/solution/normalization/**", "**/single_thread/norm/**", "**/normalization/**"],
+        "SIMT": ["**/*rms_norm*.cu", "**/*layernorm*.cu", "**/*group_norm*.cu"]
+      }
+    },
+    {
+      "id": 23,
+      "pattern": "Sparse · sparse.mm",
+      "op": "sparse.mm",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": ["**/sparse*/**"],
+        "SuperScalar": ["**/*sparse*"],
+        "SIMT": ["**/*sparse*.cu", "**/*spmm*.cu"]
+      }
+    },
+    {
+      "id": 24,
+      "pattern": "Quantization · int8/fp8",
+      "op": "DynamicMxQuant",
+      "weight": 0.0402,
+      "globs": {
+        "AscendC": ["**/dynamic*quant*/**", "**/mx_quant*/**", "**/quant*/op_kernel/**"],
+        "SuperScalar": ["**/solution/quant/**", "**/quant/**"],
+        "SIMT": ["**/*quant*.cu", "**/*fp8*.cu"]
+      }
+    },
+    {
+      "id": 25,
+      "pattern": "CollectiveComm · all_reduce",
+      "op": "dispatch+combine",
+      "weight": 0.0518,
+      "globs": {
+        "AscendC": ["**/moe_distribute*/**", "**/all_reduce*/**", "**/dispatch*/**", "**/combine*/**"],
+        "SuperScalar": ["**/solution/moe_dispatch/**", "**/solution/moe_combine/**"],
+        "SIMT": ["**/*all_reduce*.cu", "**/*dispatch*.cu", "**/*combine*.cu"]
+      }
+    },
+    {
+      "id": 26,
+      "pattern": "FusedComposite · softmax/FA",
+      "op": "QSMLA,QLI",
+      "weight": 0.2211,
+      "globs": {
+        "AscendC": ["**/flash_attention*/op_kernel/**", "**/fused_infer_attention*/**", "**/prompt_flash_attention*/**", "**/incre_flash_attention*/**"],
+        "SuperScalar": ["**/solution/quant_sparse_flash_mla/**", "**/single_thread/fa/**", "**/fa/**"],
+        "SIMT": ["**/*flash_attn*.cu", "**/*attention*.cu", "**/*softmax*.cu"]
+      }
+    }
+  ]
+}

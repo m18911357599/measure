@@ -45,6 +45,16 @@ tr:hover td{filter:brightness(1.1)}
 .cfg .r label{font-size:10px;color:var(--t2);min-width:120px}
 .cfg .r input{background:var(--bg);border:1px solid var(--border);color:var(--t);padding:2px 5px;border-radius:3px;font-size:10px;width:80px}
 .toast{color:var(--g);font-size:11px;margin-left:8px;display:none}
+.tag{font-size:9px;padding:1px 6px;border-radius:8px;border:1px solid var(--border);color:var(--t2);margin-left:4px}
+.tag.src{color:#3fb950;border-color:#3fb950}
+.tag.hw{color:#58a6ff;border-color:#58a6ff}
+.tag.perf{color:#d29922;border-color:#d29922}
+.tag.mix{color:#bc8cff;border-color:#bc8cff}
+.btn-m{background:#238636;border-color:#238636;font-weight:600}
+.drop{border:1px dashed var(--border);border-radius:8px;padding:10px;background:var(--card);margin:6px 0}
+.drop input[type=file]{font-size:11px;color:var(--t2)}
+.log{font-family:ui-monospace,monospace;font-size:10px;max-height:180px;overflow:auto;background:#010409;padding:8px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap}
+select.inp{width:auto;text-align:left}
 @media(max-width:768px){.scards{grid-template-columns:1fr}}
 </style>
 </head>
@@ -53,6 +63,8 @@ tr:hover td{filter:brightness(1.1)}
 <div class="nav">
   <b>NPU 易用性度量</b>
   <a href="#summary" class="on" onclick="go('summary')">汇总</a>
+  <a href="#measure" onclick="go('measure')">度量</a>
+  <a href="#perf" onclick="go('perf')">Benchmark性能</a>
   <a href="#cat-system" onclick="go('cat','系统规格')">系统规格</a>
   <a href="#cat-memory" onclick="go('cat','内存模型')">内存模型</a>
   <a href="#cat-compute" onclick="go('cat','计算模型')">计算模型</a>
@@ -62,10 +74,12 @@ tr:hover td{filter:brightness(1.1)}
   <a href="#cat-agent" onclick="go('cat','Agent友好')">Agent友好</a>
   <a href="#cat-dev" onclick="go('cat','开发效率')">开发效率</a>
   <a href="#weights" onclick="go('weights')">权重配置</a>
-  <a href="#hwcfg" onclick="go('hwcfg')">芯片配置</a>
+  <a href="#hwcfg" onclick="go('hwcfg')">硬件规格</a>
+  <button class="btn btn-m" style="margin-left:8px" onclick="go('measure')">度量</button>
 </div>
 <div class="main" id="main"></div>
 
+<script src="scripts/measure_lib.js"></script>
 <script>
 const V=['AscendC','SuperScalar','SIMT'];
 const VC={AscendC:'#58a6ff',SuperScalar:'#bc8cff',SIMT:'#3fb950'};
@@ -73,25 +87,37 @@ const DIFF={'易':8,'中':5,'难':2};
 let D=null; // loaded JSON data
 let HW={};
 let EDITED={}; // manually edited scores
+let COMPUTED=null; // scores from 度量 pipeline
+let EXTRACT=null; // source extract JSON
+let PERF={}; // benchmark perf per arch/op
+let OPERATORS=[];
+let MEASURE_LOG='';
+
+function kindTag(code){
+  const k=(window.MeasureLib&&MeasureLib.SOURCE_KIND[code])||'';
+  const lab=(window.MeasureLib&&MeasureLib.KIND_LABEL[k])||k;
+  const cls=k==='source'?'src':k==='hw_spec'?'hw':k==='benchmark_perf'?'perf':k==='mixed'?'mix':'';
+  return lab?`<span class="tag ${cls}">${lab}</span>`:'';
+}
 
 // 1.a.1 访存带宽原始测量数据 (per version, per dimension, per tier)
 const BAND_DIMS=['TileSize','BurstLen','stride','coreConc'];
 const BAND_TIERS=['60%','90%','99%'];
 function loadBandData(){ try{return JSON.parse(localStorage.getItem('npu_band_data')||'{}');}catch(e){return{};} }
 function saveBandData(data){ localStorage.setItem('npu_band_data',JSON.stringify(data)); }
-function defaultBandVal(dim,tier){
+function defaultBandVal(dim,tier,ver){
   if(dim==='TileSize') return tier==='60%'?32768:tier==='90%'?49152:65536;
   if(dim==='BurstLen') return tier==='60%'?128:tier==='90%'?64:32;
   if(dim==='stride') return tier==='60%'?32:tier==='90%'?8:1;
-  const N=HW.N||64;
+  const N=hwOf(ver).N||64;
   if(dim==='coreConc') return tier==='60%'?Math.round(N/2):tier==='90%'?Math.round(N/4):Math.round(N/8);
   return 0;
 }
-function bandScore(dim,val,tier){
+function bandScore(dim,val,tier,ver){
   if(dim==='TileSize') return val>=65536?0:val<=8192?10:10*(Math.log(65536)-Math.log(val))/(Math.log(65536)-Math.log(8192));
   if(dim==='BurstLen') return val<=32?10:val>=256?0:10*(Math.log(256)-Math.log(val))/(Math.log(256)-Math.log(32));
   if(dim==='stride') return val<=1?10:val>=64?0:10*(Math.log(64)-Math.log(val))/(Math.log(64)-Math.log(1));
-  const N=HW.N||64;
+  const N=hwOf(ver).N||64;
   if(dim==='coreConc') return val<=1?10:val>=N?0:10*(Math.log(N)-Math.log(val))/(Math.log(N)-Math.log(1));
   return 0;
 }
@@ -101,12 +127,36 @@ function C(v){if(v==null)return'g0';if(v>=8)return'g8';if(v>=5)return'g5';return
 function BC(v){if(v==null)return'#30363d';if(v>=8)return'#3fb950';if(v>=5)return'#d29922';return'#f85149';}
 function W(si){return si.weight||0;}
 
-function loadHW(){try{const s=localStorage.getItem('npu_hw_v2');HW=s?JSON.parse(s):(D?JSON.parse(JSON.stringify(D.hw_defaults)):{});}catch(e){HW={};}}
-function saveHW(){localStorage.setItem('npu_hw_v2',JSON.stringify(HW));showToast('hwtoast');}
+function loadHW(){
+  try{
+    const s=localStorage.getItem('npu_hw_v3');
+    if(s){HW=JSON.parse(s);}
+    else if(D&&D.hw_defaults){HW=JSON.parse(JSON.stringify(D.hw_defaults));}
+    else {HW={};}
+    // migrate flat v2 → per-arch
+    if(HW && HW.N!=null && !HW.AscendC){
+      const flat=HW;
+      HW={AscendC:JSON.parse(JSON.stringify(flat)),SuperScalar:JSON.parse(JSON.stringify(flat)),SIMT:JSON.parse(JSON.stringify(flat))};
+    }
+    V.forEach(v=>{
+      if(!HW[v]) HW[v]=(window.MeasureLib?JSON.parse(JSON.stringify(MeasureLib.defaultHw())):{});
+    });
+  }catch(e){HW={};}
+}
+function hwOf(ver){return (HW&&HW[ver])?HW[ver]:{};}
+function saveHW(){localStorage.setItem('npu_hw_v3',JSON.stringify(HW));showToast('hwtoast');}
+
+function loadComputed(){try{COMPUTED=JSON.parse(localStorage.getItem('npu_computed_v1')||'null');}catch(e){COMPUTED=null;}}
+function saveComputed(){localStorage.setItem('npu_computed_v1',JSON.stringify(COMPUTED));}
+function loadExtract(){try{EXTRACT=JSON.parse(localStorage.getItem('npu_extract_v1')||'null');}catch(e){EXTRACT=null;}}
+function saveExtract(){localStorage.setItem('npu_extract_v1',JSON.stringify(EXTRACT));}
+function loadPerf(){try{PERF=JSON.parse(localStorage.getItem('npu_perf_v1')||'{}');}catch(e){PERF={};}}
+function savePerf(){localStorage.setItem('npu_perf_v1',JSON.stringify(PERF));}
 
 function getScore(code,ver){
   const k=code+'_'+ver;
   if(EDITED[k]!==undefined)return EDITED[k];
+  if(COMPUTED&&COMPUTED.scores&&COMPUTED.scores[code]&&COMPUTED.scores[code][ver]!=null)return COMPUTED.scores[code][ver];
   if(!D||!D.scores||!D.scores[code])return null;
   const s=D.scores[code][ver];
   return (s&&s.score!==undefined)?s.score:null;
@@ -145,7 +195,9 @@ function overall(){
 
 function renderSummary(){
   const ov=overall();
-  let h='<h2>汇总</h2><div class="scards">';
+  let h='<h2>汇总</h2>';
+  if(COMPUTED) h+='<div class="warn">当前分类/子项得分已叠加「度量」流水线计算结果（源码提取 + 硬件规格 + Benchmark 性能）。手动改分优先。</div>';
+  h+='<div class="scards">';
   for(const v of V) h+=`<div class="sc"><div class="v">${v}</div><div class="s" style="color:${VC[v]}">${S(ov[v])}</div><div class="u">综合易用性</div></div>`;
   h+='</div>';
 
@@ -235,7 +287,7 @@ function renderCat(catName){
   for(const si of items){
     if(catName==='系统规格'&&si.code==='1.a.1') continue; // skip, shown in band detail
     h+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;margin:8px 0">`;
-    h+=`<b style="font-size:12px;color:var(--b)">${si.code} ${si.C}</b> <span class="note">${si.B} · Weight=${si.weight} · ${si.source_type}</span>`;
+    h+=`<b style="font-size:12px;color:var(--b)">${si.code} ${si.C}</b> ${kindTag(si.code)} <span class="note">${si.B} · Weight=${si.weight} · ${si.source_type}</span>`;
     h+=`<div class="fml">${si.formula}</div>`;
 
     for(const v of V){
@@ -345,7 +397,7 @@ function renderBandDetail(){
   h+='<div class="fml">TileSize: S=10·(ln(65536)-ln(T))/(ln(65536)-ln(8192)) [T越小越好, 达成带宽所需最小Tile, 范围8K~64K]</div>';
   h+='<div class="fml">BurstLen: S=10·(ln(256)-ln(B))/(ln(256)-ln(32)) [越小越好,32~256B]</div>';
   h+='<div class="fml">stride: S=10·(ln(64)-ln(s))/(ln(64)-ln(1)) [越小越好,1~63,s mod64≠0]</div>';
-  h+='<div class="fml">coreConc: S=10·(ln(N)-ln(c))/(ln(N)-ln(1)) [越少越好, N='+(HW.N||64)+']</div>';
+  h+='<div class="fml">coreConc: S=10·(ln(N)-ln(c))/(ln(N)-ln(1)) [越少越好; 各架构 N 取自硬件规格]</div>';
   h+='<div class="fml">子项总分: S=1/4·avg(各维度), 各维度 S_X=1/3·(S60+S90+S99)</div>';
 
   h+='<div style="overflow-x:auto"><table><thead><tr><th rowspan="2" style="width:70px">维度</th>';
@@ -361,9 +413,9 @@ function renderBandDetail(){
       var v=V[vi],dimSum=0,dimN=0;
       for(var ti=0;ti<BAND_TIERS.length;ti++){
         var tier=BAND_TIERS[ti],key=v+'_'+dim+'_'+tier;
-        var def=defaultBandVal(dim,tier);
+        var def=defaultBandVal(dim,tier,v);
         var val=bd[key]!==undefined?bd[key]:def;
-        var sc=bandScore(dim,val,tier);
+        var sc=bandScore(dim,val,tier,v);
         dimSum+=sc;dimN++;
         var cls=sc>=8?'g8':sc>=5?'g5':'g2';
         h+='<td class="'+cls+'" style="font-size:10px;padding:3px">';
@@ -385,9 +437,9 @@ function renderBandDetail(){
       var dim2=BAND_DIMS[di2],dSum=0,dN=0;
       for(var ti2=0;ti2<BAND_TIERS.length;ti2++){
         var tier2=BAND_TIERS[ti2],k2=v2+'_'+dim2+'_'+tier2;
-        var def2=defaultBandVal(dim2,tier2);
+        var def2=defaultBandVal(dim2,tier2,v2);
         var val2=bd[k2]!==undefined?bd[k2]:def2;
-        dSum+=bandScore(dim2,val2,tier2);dN++;
+        dSum+=bandScore(dim2,val2,tier2,v2);dN++;
       }
       totalSum+=dN>0?dSum/dN:0;totalN++;
     }
@@ -413,7 +465,7 @@ function renderMemoryDetail(){
   h+='<div class="cfg"><h4>📏 3.a.1 对齐颗粒度 — 各 Buffer cacheline 对齐</h4>';
   h+='<div class="fml">Si=10·(ln(64)-ln(s))/ln(64) [s=buffer硬对齐最小粒度, s≤64→10分]</div>';
   h+='<div class="fml">子项总分: S=1/M·ΣSi (M个buffer均值), 各档相同值</div>';
-  var bufs=HW.buffers||[{name:'UB'},{name:'L1'},{name:'L0C'}];
+  var bufs=hwOf('AscendC').buffers||hwOf(V[0]).buffers||[{name:'UB'},{name:'L1'},{name:'L0C'}];
   h+='<table><thead><tr><th style="text-align:left">Buffer</th><th>对齐粒度(s)</th><th>得分</th><th style="text-align:left">备注</th></tr></thead><tbody>';
   for(var i=0;i<bufs.length;i++){
     var buf=bufs[i],key='buf_align_'+i;
@@ -843,43 +895,338 @@ function renderCatExpand(catName){
   return h;
 }
 
+let HW_ARCH='AscendC';
+let PERF_OP='1';
+const FILES_BY_ARCH={AscendC:[],SuperScalar:[],SIMT:[]};
+
 function renderHwCfg(){
-  let h='<h2>芯片硬件规格配置</h2><div class="note">保存到浏览器本地。用于部分度量公式的参考基准值。</div>';
-  h+='<div class="cfg"><h4>系统规格</h4>';
-  h+=hwRow('总核心数 N','N',HW.N||0);
-  h+=hwRow('峰值带宽 Bpeak','Bpeak_GBs',HW.Bpeak_GBs||0,'GB/s');
-  h+=hwRow('Cacheline','cacheline_B',HW.cacheline_B||64,'B');
-  h+=hwRow('TileSize下限','tile_min',HW.tile_min||8192,'Byte');
-  h+=hwRow('TileSize上限','tile_max',HW.tile_max||65536,'Byte');
-  h+=hwRow('BurstLen下限','burst_min',HW.burst_min||32,'B');
-  h+=hwRow('BurstLen上限','burst_max',HW.burst_max||256,'B');
+  if(!HW[HW_ARCH]) HW[HW_ARCH]=window.MeasureLib?MeasureLib.defaultHw():{};
+  const H=HW[HW_ARCH];
+  let h='<h2>硬件规格设置</h2>';
+  h+='<div class="note">按架构填写规格书参数。3.a.1 对齐、3.a.3 层级数、4.a/4.b ISA、7.x 调试调优均从此页取值。保存后可在「度量」页重算得分。</div>';
+  h+='<div class="br" style="margin:8px 0">';
+  for(const v of V) h+=`<button class="btn" style="background:${HW_ARCH===v?VC[v]:'var(--card)'};color:${HW_ARCH===v?'#fff':'var(--t)'}" onclick="HW_ARCH='${v}';go('hwcfg')">${v}</button>`;
   h+='</div>';
-  h+='<div class="cfg"><h4>内存模型 Buffer</h4>';
-  if(HW.buffers) HW.buffers.forEach((buf,i)=>{
-    h+=`<div style="margin:4px 0"><b style="color:var(--b);font-size:10px">${buf.name||'Buffer '+i}</b>`;
+  h+=`<div class="cfg"><h4>${HW_ARCH} · 系统规格</h4>`;
+  h+=hwRow('总核心数 N','N',H.N||0);
+  h+=hwRow('峰值带宽 Bpeak','Bpeak_GBs',H.Bpeak_GBs||0,'GB/s');
+  h+=hwRow('Cacheline','cacheline_B',H.cacheline_B||64,'B');
+  h+=hwRow('TileSize 下限/上限','tile_min',H.tile_min||8192,'Byte');
+  h+=hwRow('TileSize 上限','tile_max',H.tile_max||65536,'Byte');
+  h+=hwRow('BurstLen 下限','burst_min',H.burst_min||32,'B');
+  h+=hwRow('BurstLen 上限','burst_max',H.burst_max||256,'B');
+  h+='</div>';
+  h+='<div class="cfg"><h4>内存 Buffer（3.a.1 对齐 / 3.a.4 容量）</h4>';
+  (H.buffers||[]).forEach((buf,i)=>{
+    h+=`<div style="margin:4px 0"><b style="color:var(--b);font-size:10px">${buf.name||('Buffer '+i)}</b>`;
+    h+=hwRow('名称','buffers_'+i+'_name',buf.name||'','');
     h+=hwRow('对齐粒度','buffers_'+i+'_align',buf.align_B||0,'Byte');
     h+=hwRow('容量','buffers_'+i+'_cap',buf.cap_KiB||0,'KiB');
     h+='</div>';
   });
-  h+=hwRow('ICache','ICache_KiB',HW.ICache_KiB||0,'KiB');
-  h+=hwRow('DCache','DCache_KiB',HW.DCache_KiB||0,'KiB');
-  h+=hwRow('流水切换参考上限','pipe_ref',HW.pipe_ref||3,'次');
+  h+=hwRow('ICache','ICache_KiB',H.ICache_KiB||0,'KiB');
+  h+=hwRow('DCache','DCache_KiB',H.DCache_KiB||0,'KiB');
+  h+=hwRow('二进制+栈','binary_stack_KiB',H.binary_stack_KiB||0,'KiB');
+  h+=hwRow('流水切换上限 Pref','pipe_ref',H.pipe_ref||3,'次');
+  h+=hwRow('GM→Vector 切换','P_gm2vec',H.P_gm2vec||0,'次');
+  h+=hwRow('GM→Cube 切换','P_gm2cube',H.P_gm2cube||0,'次');
+  h+=hwRow('Cube→Vector 切换','P_cube2vec',H.P_cube2vec||0,'次');
+  h+=hwRow('Vector→Cube 切换','P_vec2cube',H.P_vec2cube||0,'次');
+  h+=hwRow('Hint 种类 N_hint','N_hint',H.N_hint||0,'类');
   h+='</div>';
-  h+=`<button class="btn" onclick="saveHW()" style="margin-top:8px">保存芯片配置</button> <span class="toast" id="hwtoast">已保存</span>`;
+  h+='<div class="cfg"><h4>计算 ISA / API（4.a / 4.b）</h4>';
+  h+=hwRow('计算 API 总数 N_api','N_api',H.N_api||0);
+  h+=hwRow('原子性违反 API 数','N_viol',H.N_viol||0);
+  h+=hwRow('硬件指令数 N_hw','N_hw',H.N_hw||0);
+  h+=hwRow('一指令多 API 数','N_api_dup',H.N_api_dup||0);
+  h+=hwRow('非必选参数比率','optional_param_ratio',H.optional_param_ratio||0);
+  h+=hwRow('枚举定义总数','N_enum_def',H.N_enum_def||0);
+  h+=hwRow('硬件对齐率 r_hw','r_hw',H.r_hw||0);
+  h+=hwRow('SIMT 对齐率 r_simt','r_simt',H.r_simt||0);
+  h+=hwRow('软件仿真率 r_sw','r_sw',H.r_sw||0);
+  h+=hwRow('cast/atomic 完备度','r_cover',H.r_cover||0);
+  h+=hwRow('MMA 原生支持比','r_mma',H.r_mma||0);
+  h+=hwRow('低bit ULP','ulp',H.ulp||2);
+  h+=hwRow('量化转换次数','c_conv',H.c_conv||0);
+  h+=hwRow('RTN 舍入 0/1','round_rtn',H.round_rtn||0);
+  h+=hwRow('SR 舍入 0/1','round_sr',H.round_sr||0);
+  h+=hwRow('IEEE 兼容比','r_ieee',H.r_ieee||0);
+  h+='</div>';
+  h+='<div class="cfg"><h4>调试调优硬件锚点（7.x）</h4>';
+  h+=hwRow('已检测异常类型','exc_detected',H.exc_detected||0);
+  h+=hwRow('定义异常类型总数','exc_defined',H.exc_defined||0);
+  h+=hwRow('检出率 p_det','p_det',H.p_det||0);
+  h+=hwRow('漏报率 p_fn','p_fn',H.p_fn||0);
+  h+=hwRow('误报率 p_fp','p_fp',H.p_fp||0);
+  h+=hwRow('重复上报率','p_dup',H.p_dup||0);
+  h+=hwRow('SDC 漏检率','p_sdc',H.p_sdc||0);
+  h+=hwRow('上报准确率','c_acc',H.c_acc||0);
+  h+=hwRow('上报完整率','c_comp',H.c_comp||0);
+  h+=hwRow('首因识别率','r_root',H.r_root||0);
+  h+=hwRow('断点类型数 /12','bp_supported',H.bp_supported||0);
+  h+=hwRow('可设位置覆盖率','r_loc',H.r_loc||0);
+  h+=hwRow('PC 定位准确率','r_pc',H.r_pc||0);
+  h+=hwRow('多核暂停一致率','r_halt',H.r_halt||0);
+  h+=hwRow('观测对象覆盖率','r_obscov',H.r_obscov||0);
+  h+=hwRow('事件类型覆盖率','r_evtcov',H.r_evtcov||0);
+  h+=hwRow('指标相对误差','e_rel',H.e_rel||0);
+  h+=hwRow('未丢失记录率','r_loss',H.r_loss==null?1:H.r_loss);
+  h+=hwRow('瓶颈类型数 /9','bn_ok',H.bn_ok||0);
+  h+=hwRow('Stall 解释覆盖率','r_expl',H.r_expl||0);
+  h+=hwRow('观测时间开销','delta_t',H.delta_t||0);
+  h+=hwRow('行为扰动率','delta_b',H.delta_b||0);
+  h+=hwRow('端到端关联率','r_tasklink',H.r_tasklink||0);
+  h+='</div>';
+  h+=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" onclick="saveHW()">保存 ${HW_ARCH} 规格</button>
+    <button class="btn btn-m" onclick="saveHW();recomputeScores();go('hwcfg')">保存并重算得分</button>
+    <span class="toast" id="hwtoast">已保存</span></div>`;
   return h;
 }
 function hwRow(label,key,val,unit){
-  return`<div class="r"><label>${label}</label><input type="number" value="${val}" onchange="setHwVal('${key}',this.value)" step="any"><span class="note">${unit||''}</span></div>`;
+  const isName=key.indexOf('_name')>=0;
+  return`<div class="r"><label>${label}</label><input type="${isName?'text':'number'}" value="${val}" onchange="setHwVal('${key}',this.value)" step="any"><span class="note">${unit||''}</span></div>`;
 }
 function setHwVal(key,val){
+  const H=HW[HW_ARCH]||(HW[HW_ARCH]={});
   const keys=key.split('_');
   if(keys[0]==='buffers'){
     const idx=parseInt(keys[1]);
-    const field=keys[2]==='align'?'align_B':'cap_KiB';
-    if(HW.buffers&&HW.buffers[idx]) HW.buffers[idx][field]=Number(val);
+    if(!H.buffers) H.buffers=[];
+    if(!H.buffers[idx]) H.buffers[idx]={name:'Buffer '+idx,align_B:0,cap_KiB:0};
+    if(keys[2]==='align') H.buffers[idx].align_B=Number(val);
+    else if(keys[2]==='cap') H.buffers[idx].cap_KiB=Number(val);
+    else if(keys[2]==='name') H.buffers[idx].name=val;
   }else{
-    HW[key]=Number(val);
+    H[key]=val===''?0:Number(val);
   }
+}
+
+function ensurePerfOp(arch, oid){
+  if(!PERF[arch]) PERF[arch]={};
+  if(!PERF[arch][oid]){
+    const d=window.MeasureLib?MeasureLib.defaultPerfOp():{tiers:{}};
+    PERF[arch][oid]=JSON.parse(JSON.stringify(d));
+  }
+  return PERF[arch][oid];
+}
+function setPerfField(arch, oid, key, val){
+  const p=ensurePerfOp(arch, oid);
+  p[key]=val===''?'' : Number(val);
+}
+function setPerfTier(arch, oid, tier, key, val){
+  const p=ensurePerfOp(arch, oid);
+  if(!p.tiers) p.tiers={};
+  if(!p.tiers[tier]) p.tiers[tier]={};
+  p.tiers[tier][key]=val===''?'' : Number(val);
+}
+
+function renderPerf(){
+  const ops=OPERATORS.length?OPERATORS:(D&&D.operators?D.operators:[]);
+  if(!ops.find(o=>String(o.id)===String(PERF_OP)) && ops[0]) PERF_OP=String(ops[0].id);
+  let h='<h2>Benchmark 算子性能数据</h2>';
+  h+='<div class="note">为需要实测性能的子项（1.a.1 访存带宽、3.a.2/3.a.4、4.b.1、5.d/5.e、8.a.1 等）按 AscendC / SuperScalar / SIMT 三架构填写。三档 60%/90%/99% 独立度量。</div>';
+  h+='<div class="cfg"><h4>选择 Pattern / 算子</h4><select class="inp" onchange="PERF_OP=this.value;go(\'perf\')">';
+  for(const op of ops){
+    h+=`<option value="${op.id}" ${String(op.id)===String(PERF_OP)?'selected':''}>#${op.id} ${op.pattern||op.name} (${op.op||''})</option>`;
+  }
+  h+='</select></div>';
+
+  const fields=[
+    ['p0','默认带宽达成率 p0',''],
+    ['hint_gap','无 hint 性能差距 gap',''],
+    ['icache_miss','ICache miss 率',''],
+    ['T_fused','随路执行时间 T_fused',''],
+    ['T_no_fused','非随路时间 T_no_fused',''],
+    ['P_runtime','运行时 pipeline 切换次数',''],
+    ['T_head','首搬运时延 T_head',''],
+    ['T_kernel','Kernel 总时间 T_kernel',''],
+    ['mfu_quant','量化 MFU',''],
+    ['mfu_fp16','FP16 基准 MFU',''],
+    ['P_agent','Agent 实测性能',''],
+    ['P_theory','理论峰值性能',''],
+    ['N_versions','开发迭代版本数 N','']
+  ];
+  h+='<div class="cfg"><h4>算子级性能</h4><table><thead><tr><th style="text-align:left">字段</th>';
+  for(const v of V) h+=`<th style="color:${VC[v]}">${v}</th>`;
+  h+='</tr></thead><tbody>';
+  for(const [key,label] of fields){
+    h+=`<tr><td style="text-align:left;font-size:10px">${label}</td>`;
+    for(const v of V){
+      const p=ensurePerfOp(v, PERF_OP);
+      const val=p[key]==null?'':p[key];
+      h+=`<td><input class="inp" type="number" step="any" value="${val}" onchange="setPerfField('${v}','${PERF_OP}','${key}',this.value)"></td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+
+  const tfields=[['tileSize','TileSize Byte'],['burstLen','BurstLen B'],['stride','stride 余量'],['coreConc','coreConc'],['Lc','bank 修改行数 Lc'],['dV','圈复杂度比 ΔV'],['T_scalar','Scalar 时间'],['T_maxPipe','最大 pipe 时间']];
+  h+='<div class="cfg"><h4>三档 (60 / 90 / 99%) 性能</h4><div style="overflow-x:auto"><table><thead><tr><th rowspan="2">字段</th>';
+  for(const v of V) h+=`<th colspan="3" style="color:${VC[v]}">${v}</th>`;
+  h+='</tr><tr>';
+  for(let i=0;i<3;i++) h+='<th>60%</th><th>90%</th><th>99%</th>';
+  h+='</tr></thead><tbody>';
+  for(const [key,label] of tfields){
+    h+=`<tr><td style="text-align:left;font-size:10px">${label}</td>`;
+    for(const v of V){
+      const p=ensurePerfOp(v, PERF_OP);
+      for(const tier of ['60%','90%','99%']){
+        const val=((p.tiers||{})[tier]||{})[key];
+        h+=`<td><input class="inp" type="number" step="any" value="${val==null?'':val}" style="width:56px" onchange="setPerfTier('${v}','${PERF_OP}','${tier}','${key}',this.value)"></td>`;
+      }
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div></div>';
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn" onclick="savePerf();showToast('perftoast')">保存性能数据</button>
+    <button class="btn btn-m" onclick="savePerf();recomputeScores();go('perf')">保存并重算得分</button>
+    <span class="toast" id="perftoast">已保存</span></div>`;
+  return h;
+}
+
+function appendLog(msg){MEASURE_LOG+=(msg+'\n'); const el=document.getElementById('mlog'); if(el) el.textContent=MEASURE_LOG;}
+
+function renderMeasure(){
+  let h='<h2>度量 · Benchmark 源码提取</h2>';
+  h+='<div class="note">对照 measure.md 各 x.y.z 子项：需要算子源码的项在此提取；需要性能数据的项在「Benchmark性能」填写；直接来自规格书的项在「硬件规格」填写。提取后点击「应用到得分」。</div>';
+  h+='<div class="cfg"><h4>Benchmark 算子来源</h4>';
+  h+='<table><thead><tr><th>架构</th><th style="text-align:left">参考仓库 / 目录</th></tr></thead><tbody>';
+  h+='<tr><td style="color:#58a6ff">AscendC</td><td style="text-align:left">gitcode.com/cann/ops-nn、ops-math、ops-transformer（优先 op_kernel/）</td></tr>';
+  h+='<tr><td style="color:#bc8cff">SuperScalar</td><td style="text-align:left">github.com/PTO-ISA/SuperNpuBench @ ops-20260908 /benchmark/one-level-arch/kernels/solution</td></tr>';
+  h+='<tr><td style="color:#3fb950">SIMT</td><td style="text-align:left">CUDA kernels（cutlass / cub / 自定义 .cu）</td></tr>';
+  h+='</tbody></table></div>';
+
+  h+='<div class="cfg"><h4>1. 选择本地算子源码目录</h4>';
+  for(const v of V){
+    h+=`<div class="drop"><b style="color:${VC[v]}">${v}</b>
+      <input type="file" webkitdirectory multiple onchange="onPickDir('${v}',this.files)">
+      <span class="note" id="fcnt_${v}">${(FILES_BY_ARCH[v]||[]).length} 个源文件</span></div>`;
+  }
+  h+=`<button class="btn btn-m" onclick="runBrowserExtract()">运行源码提取</button></div>`;
+
+  h+='<div class="cfg"><h4>2. 或通过本地度量服务提取（python3 scripts/measure.py serve）</h4>';
+  h+='<div class="r"><label>AscendC 路径</label><input id="path_AscendC" placeholder="/path/to/ops-nn 或合并根目录" style="width:360px"></div>';
+  h+='<div class="r"><label>SuperScalar 路径</label><input id="path_SuperScalar" placeholder="/path/to/SuperNpuBench/.../kernels/solution" style="width:360px"></div>';
+  h+='<div class="r"><label>SIMT 路径</label><input id="path_SIMT" placeholder="/path/to/cuda-kernels" style="width:360px"></div>';
+  h+=`<button class="btn btn-m" onclick="runServerExtract()">度量（服务端提取）</button>
+      <button class="btn" onclick="importExtractJson()">导入 extract JSON</button>
+      <input type="file" id="extractPick" accept=".json" style="display:none" onchange="onExtractFile(this.files[0])">
+      </div>`;
+
+  h+='<div class="cfg"><h4>提取结果</h4>';
+  h+=renderExtractTable();
+  h+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+    <button class="btn btn-m" onclick="recomputeScores();go('measure')">应用到得分</button>
+    <button class="btn" onclick="downloadExtract()">导出 extract JSON</button>
+    <button class="btn" onclick="downloadComputed()">导出 computed scores</button>
+    </div>
+    <div class="log" id="mlog">${MEASURE_LOG||'就绪。'}</div></div>`;
+  return h;
+}
+
+function renderExtractTable(){
+  if(!EXTRACT||!EXTRACT.arches) return '<div class="note">尚未提取。选择目录后点击「运行源码提取」。</div>';
+  const ops=OPERATORS.length?OPERATORS:(D&&D.operators?D.operators:[]);
+  let h='<div style="overflow-x:auto"><table><thead><tr><th>#</th><th style="text-align:left">Pattern</th>';
+  for(const v of V) h+=`<th colspan="3" style="color:${VC[v]}">${v}</th>`;
+  h+='</tr><tr><th></th><th></th>';
+  for(const v of V) h+='<th>Ltot</th><th>Ldma</th><th>文件</th>';
+  h+='</tr></thead><tbody>';
+  for(const op of ops){
+    h+=`<tr><td>${op.id}</td><td style="text-align:left;font-size:10px">${op.pattern||op.name}</td>`;
+    for(const v of V){
+      const m=((((EXTRACT.arches[v]||{}).operators||{})[String(op.id)]||{}).metrics)||{};
+      const miss=m.missing||!m.L_total;
+      h+=`<td>${miss?'—':m.L_total}</td><td>${miss?'—':m.L_dma}</td><td>${miss?'0':(m.files||(m.file_list||[]).length)}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function onPickDir(arch, fileList){
+  const arr=[];
+  const ext=window.MeasureLib?MeasureLib.SRC_EXT:/\.(cpp|h|hpp|cu|cuh)$/i;
+  for(const f of fileList){
+    if(!ext.test(f.name)) continue;
+    arr.push(f);
+  }
+  FILES_BY_ARCH[arch]=arr;
+  const el=document.getElementById('fcnt_'+arch);
+  if(el) el.textContent=arr.length+' 个源文件';
+  appendLog(arch+': 选中 '+arr.length+' 个源文件');
+}
+
+async function readFiles(fileArr){
+  const out=[];
+  for(const f of fileArr){
+    const text=await f.text();
+    out.push({name:f.name, path:f.webkitRelativePath||f.name, text});
+  }
+  return out;
+}
+
+async function runBrowserExtract(){
+  if(!window.MeasureLib){alert('未加载 measure_lib.js');return;}
+  appendLog('开始浏览器源码提取…');
+  const byArch={};
+  for(const v of V){
+    byArch[v]=await readFiles(FILES_BY_ARCH[v]||[]);
+    appendLog(v+': 读取 '+byArch[v].length+' 个文件');
+  }
+  EXTRACT=MeasureLib.extractFromEntries(byArch, OPERATORS);
+  saveExtract();
+  appendLog('提取完成');
+  go('measure');
+}
+
+async function runServerExtract(){
+  const roots={};
+  for(const v of V){
+    const el=document.getElementById('path_'+v);
+    if(el&&el.value.trim()) roots[v]=el.value.trim();
+  }
+  appendLog('POST /api/extract '+JSON.stringify(roots));
+  try{
+    const r=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roots})});
+    const js=await r.json();
+    if(!r.ok){appendLog('失败: '+(js.error||r.status));return;}
+    EXTRACT=js; saveExtract(); appendLog('服务端提取完成'); go('measure');
+  }catch(e){appendLog('无法连接度量服务: '+e.message+'（可改用目录选择或 python3 scripts/measure.py serve）');}
+}
+
+function importExtractJson(){document.getElementById('extractPick').click();}
+function onExtractFile(f){
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{EXTRACT=JSON.parse(e.target.result);saveExtract();appendLog('已导入 '+f.name);go('measure');}
+    catch(err){appendLog('JSON 错误: '+err.message);}
+  };
+  r.readAsText(f);
+}
+function downloadExtract(){
+  if(!EXTRACT) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(EXTRACT,null,2)],{type:'application/json'}));
+  a.download='extract_result.json'; a.click();
+}
+function downloadComputed(){
+  if(!COMPUTED) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(COMPUTED,null,2)],{type:'application/json'}));
+  a.download='computed_scores.json'; a.click();
+}
+
+function recomputeScores(){
+  if(!window.MeasureLib){alert('未加载 measure_lib.js');return;}
+  const extract=EXTRACT||{arches:{}};
+  COMPUTED=MeasureLib.scoreAll(extract, HW, PERF, D?D.patterns:[]);
+  saveComputed();
+  appendLog('已按源码提取 + 硬件规格 + Benchmark 性能重算得分');
 }
 
 function showToast(id){
@@ -896,6 +1243,8 @@ function go(page,arg){
   const m=document.getElementById('main');
   switch(arg||page){
     case'summary':m.innerHTML=renderSummary();break;
+    case'measure':m.innerHTML=renderMeasure();break;
+    case'perf':m.innerHTML=renderPerf();break;
     case'系统规格':case'内存模型':case'计算模型':case'控制模型':case'访存模型':case'Agent友好':case'开发效率':m.innerHTML=renderCat(arg);break;
     case'调试调优':m.innerHTML=renderDebug();break;
     case'weights':m.innerHTML=renderWeights();break;
@@ -906,6 +1255,7 @@ function go(page,arg){
 
 // init
 try{EDITED=JSON.parse(localStorage.getItem('npu_edited')||'{}');}catch(e){EDITED={};}
+loadComputed(); loadExtract(); loadPerf();
 loadHW();
 
 fetch('measure_data.json').then(r=>{
@@ -913,11 +1263,13 @@ fetch('measure_data.json').then(r=>{
   return r.json();
 }).then(json=>{
   D=json;
+  OPERATORS=D.operators||[];
   if(!D.weights) D.weights={categories:{},sub_items:{}};
   try{
     const sw=JSON.parse(localStorage.getItem('npu_weights_v2')||'{}');
     if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
   }catch(e){}
+  loadHW();
   go('summary');
 }).catch(e=>{
   var el=document.getElementById('main');
@@ -928,7 +1280,7 @@ fetch('measure_data.json').then(r=>{
   document.getElementById('filePick').onchange=function(){
     var f=this.files[0]; if(!f) return;
     var r=new FileReader();
-    r.onload=function(e2){try{D=JSON.parse(e2.target.result);if(!D.weights)D.weights={categories:{},sub_items:{}};go('summary');}catch(err2){el.innerHTML='JSON错误: '+err2.message;}};
+    r.onload=function(e2){try{D=JSON.parse(e2.target.result);OPERATORS=D.operators||[];if(!D.weights)D.weights={categories:{},sub_items:{}};loadHW();go('summary');}catch(err2){el.innerHTML='JSON错误: '+err2.message;}};
     r.readAsText(f);
   };
 });
