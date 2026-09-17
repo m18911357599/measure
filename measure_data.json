@@ -1,0 +1,1893 @@
+{
+  "meta": {
+    "generated": "2026-09-15T08:24:21.860588",
+    "source": "measure.py",
+    "version": "2.0"
+  },
+  "categories": [
+    {
+      "code": "1",
+      "name": "系统规格",
+      "purpose": "度量在系统规格层面（带宽利用、搬运切分、对齐约束）对用户的暴露程度"
+    },
+    {
+      "code": "3",
+      "name": "内存模型",
+      "purpose": "度量在内存层级、离散访问、cache一致性等方面对用户的认知与编码代价"
+    },
+    {
+      "code": "4",
+      "name": "计算模型",
+      "purpose": "度量在计算指令原子性、完备性、参数复杂度等方面对用户的编程负担"
+    },
+    {
+      "code": "5",
+      "name": "控制模型",
+      "purpose": "度量在多流水编排、同步原语、生产者消费者模型等方面的控制复杂度"
+    },
+    {
+      "code": "6",
+      "name": "访存模型",
+      "purpose": "度量在数据搬运地址计算、格式转换、tiling参数等方面的访存编码代价"
+    },
+    {
+      "code": "7",
+      "name": "调试调优",
+      "purpose": "度量在错误异常处理、芯片断点调试、可观测性、性能度量等方面的调试调优能力"
+    },
+    {
+      "code": "8",
+      "name": "Agent友好",
+      "purpose": "度量对AI Agent/Copilot自动生成算子代码的友好程度"
+    },
+    {
+      "code": "9",
+      "name": "开发效率",
+      "purpose": "度量开发多版本算子时的代码修改代价与性能提升比"
+    }
+  ],
+  "sub_items": [
+    {
+      "code": "1.a.1",
+      "cat": "系统规格",
+      "B": "访存带宽",
+      "C": "访存带宽",
+      "weight": 1,
+      "formula": "成本型: S=10·clamp(1-X/Xref,0,1), 四维度各分60/90/99%三档",
+      "source_type": "profiling"
+    },
+    {
+      "code": "3.a.1",
+      "cat": "内存模型",
+      "B": "buffer层级",
+      "C": "对齐颗粒度",
+      "weight": 0.1111,
+      "formula": "Si=10·(ln64-lns)/ln64",
+      "source_type": "static"
+    },
+    {
+      "code": "3.a.2",
+      "cat": "内存模型",
+      "B": "buffer层级",
+      "C": "bank/bankgroup",
+      "weight": 0.1111,
+      "formula": "S=0.6Sγ+0.4SV, Sγ代码修改比, SV圈复杂度",
+      "source_type": "profiling"
+    },
+    {
+      "code": "3.a.3",
+      "cat": "内存模型",
+      "B": "buffer层级",
+      "C": "层级数",
+      "weight": 0.1111,
+      "formula": "S=avg(四通路), Sx=10·clamp(1-Px/3,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "3.a.4",
+      "cat": "内存模型",
+      "B": "buffer层级",
+      "C": "容量",
+      "weight": 0.1111,
+      "formula": "ρ≤1→10分, ρ>1→S=10/ρ",
+      "source_type": "profiling"
+    },
+    {
+      "code": "3.a.5",
+      "cat": "内存模型",
+      "B": "buffer层级",
+      "C": "层级间通路",
+      "weight": 0.1111,
+      "formula": "γ=Ldma/Ltotal, S=10·clamp(1-γ/0.3,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "3.b.1",
+      "cat": "内存模型",
+      "B": "cache",
+      "C": "dcache一致性",
+      "weight": 0.1111,
+      "formula": "γ=Lcoh/Ltotal, S=10·clamp(1-γ/0.2,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "3.b.2",
+      "cat": "内存模型",
+      "B": "cache",
+      "C": "hint行为控制",
+      "weight": 0.1111,
+      "formula": "S=0.45·clamp(10-2Nhint,0,10)+0.55·Sgap",
+      "source_type": "static"
+    },
+    {
+      "code": "3.b.3",
+      "cat": "内存模型",
+      "B": "cache",
+      "C": "亲Die部署",
+      "weight": 0.1111,
+      "formula": "S=10-5·fcluster, clamp[0,10]",
+      "source_type": "static"
+    },
+    {
+      "code": "3.b.4",
+      "cat": "内存模型",
+      "B": "cache",
+      "C": "容量",
+      "weight": 0.1111,
+      "formula": "S=0.4Sratio+0.6Smiss",
+      "source_type": "profiling"
+    },
+    {
+      "code": "4.a.1",
+      "cat": "计算模型",
+      "B": "计算指令",
+      "C": "计算指令原子性",
+      "weight": 0.1667,
+      "formula": "τ=Nviol/Napi, S=10(1-τ)",
+      "source_type": "static"
+    },
+    {
+      "code": "4.a.2",
+      "cat": "计算模型",
+      "B": "计算指令",
+      "C": "性能一致性",
+      "weight": 0.1667,
+      "formula": "S=0.65·10(1-η)+0.35·友商对标, η=Napi_dup/Nhw",
+      "source_type": "static"
+    },
+    {
+      "code": "4.a.3",
+      "cat": "计算模型",
+      "B": "计算指令",
+      "C": "指令参数",
+      "weight": 0.1667,
+      "formula": "S=0.5Sπ+0.5Sε",
+      "source_type": "static"
+    },
+    {
+      "code": "4.a.4",
+      "cat": "计算模型",
+      "B": "计算指令",
+      "C": "指令完备性",
+      "weight": 0.1667,
+      "formula": "S=0.25Shw+0.25Ssimt+0.15Ssw+0.35Scover",
+      "source_type": "manual"
+    },
+    {
+      "code": "4.b.1",
+      "cat": "计算模型",
+      "B": "随路计算",
+      "C": "性能一致性",
+      "weight": 0.1667,
+      "formula": "ρi=Tfused/Tno_fused, Si=10·clamp(1-|ρi-1|/0.25,0,1)",
+      "source_type": "profiling"
+    },
+    {
+      "code": "4.b.2",
+      "cat": "计算模型",
+      "B": "低bit量化",
+      "C": "低bit量化",
+      "weight": 0.1667,
+      "formula": "S=0.30Stypes+0.25Sacc+0.20Slayout+0.25Smfu 四维度(数据类型/精度/Layout/MFU)",
+      "source_type": "static"
+    },
+    {
+      "code": "5.a.1",
+      "cat": "控制模型",
+      "B": "多pipeline并行",
+      "C": "多pipeline并行",
+      "weight": 0.1667,
+      "formula": "γ=Pruntime/Psrc, S=10·clamp(2-γ,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "5.b.1",
+      "cat": "控制模型",
+      "B": "同步",
+      "C": "核间同步",
+      "weight": 0.1667,
+      "formula": "r=Lsync/Ltotal, S=10·clamp(1-r/0.3,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "5.b.2",
+      "cat": "控制模型",
+      "B": "同步",
+      "C": "核内同步",
+      "weight": 0.1667,
+      "formula": "r=Lintra/Ltotal, S=10·clamp(1-r/0.25,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "5.c.1",
+      "cat": "控制模型",
+      "B": "生产者消费者",
+      "C": "生产者消费者模型",
+      "weight": 0.1667,
+      "formula": "r=Lpc/Ltotal, S=10·clamp(1-r/0.35,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "5.d.1",
+      "cat": "控制模型",
+      "B": "Scalar",
+      "C": "Scalar bound",
+      "weight": 0.1667,
+      "formula": "S=0.55·Stime+0.45·Scode",
+      "source_type": "static"
+    },
+    {
+      "code": "5.e.1",
+      "cat": "控制模型",
+      "B": "头开销",
+      "C": "头开销",
+      "weight": 0.1667,
+      "formula": "S=0.55·Stime+0.45·Scode",
+      "source_type": "static"
+    },
+    {
+      "code": "6.a.1",
+      "cat": "访存模型",
+      "B": "访存指令",
+      "C": "分型",
+      "weight": 0.3333,
+      "formula": "r=Ldma_args/Ltotal, S=10·clamp(1-r/0.35,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "6.a.2",
+      "cat": "访存模型",
+      "B": "访存指令",
+      "C": "非结构化访存",
+      "weight": 0.3333,
+      "formula": "r=Laddr/Ltotal, S=10·clamp(1-r/0.3,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "6.b.1",
+      "cat": "访存模型",
+      "B": "申请与管理",
+      "C": "申请与管理",
+      "weight": 0.3333,
+      "formula": "r=Lalloc/Ltotal, S=10·clamp(1-r/0.25,0,1)",
+      "source_type": "static"
+    },
+    {
+      "code": "7.a.1",
+      "cat": "调试调优",
+      "B": "错误异常处理",
+      "C": "异常类型覆盖率",
+      "weight": 0.0625,
+      "formula": "rcov=已检测/定义总数, S=10·rcov",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.a.2",
+      "cat": "调试调优",
+      "B": "错误异常处理",
+      "C": "异常检出率",
+      "weight": 0.0625,
+      "formula": "S=0.6·10pdet+0.4Snoise",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.a.3",
+      "cat": "调试调优",
+      "B": "错误异常处理",
+      "C": "上报完整率准确率",
+      "weight": 0.0625,
+      "formula": "S=0.55·10cacc+0.45·10ccomp",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.a.4",
+      "cat": "调试调优",
+      "B": "错误异常处理",
+      "C": "首因识别率",
+      "weight": 0.0625,
+      "formula": "rroot=正确首因/级联总数, S=10·rroot",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.b.1",
+      "cat": "调试调优",
+      "B": "芯片调试断点",
+      "C": "断点类型覆盖率",
+      "weight": 0.0625,
+      "formula": "rbpcov=已支持/12类, S=10·rbpcov",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.b.2",
+      "cat": "调试调优",
+      "B": "芯片调试断点",
+      "C": "可设位置覆盖率",
+      "weight": 0.0625,
+      "formula": "rloc=可设/理论总数, S=10·rloc",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.b.3",
+      "cat": "调试调优",
+      "B": "芯片调试断点",
+      "C": "PC定位准确率",
+      "weight": 0.0625,
+      "formula": "rpc=PC一致/命中总数, S=10·rpc",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.b.4",
+      "cat": "调试调优",
+      "B": "芯片调试断点",
+      "C": "多核暂停一致率",
+      "weight": 0.0625,
+      "formula": "rhalt=稳定暂停/请求总数, S=10·rhalt",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.c.1",
+      "cat": "调试调优",
+      "B": "可观测维度",
+      "C": "观测对象覆盖率",
+      "weight": 0.0625,
+      "formula": "robscov=可观测/要求总数, S=10·robscov",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.1",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "事件类型覆盖率",
+      "weight": 0.0625,
+      "formula": "revtcov=可采集/要求总数, S=10·revtcov",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.2",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "指标准确性",
+      "weight": 0.0625,
+      "formula": "erel=avg|测量-基准|/基准, S=10·clamp(1-erel/0.1,0,1)",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.3",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "数据丢失率",
+      "weight": 0.0625,
+      "formula": "rloss=未丢失/理论总数, S=10·clamp((rloss-0.95)/0.05,0,1)",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.4",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "瓶颈类型覆盖率",
+      "weight": 0.0625,
+      "formula": "rbncov=可归因/9类, S=10·rbncov",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.5",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "Stall解释覆盖率",
+      "weight": 0.0625,
+      "formula": "rexpl=可归因Stall/总Stall, S=10·rexpl",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.6",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "低扰动采集开销",
+      "weight": 0.0625,
+      "formula": "S=0.55Stime+0.45Spert",
+      "source_type": "hardware"
+    },
+    {
+      "code": "7.d.7",
+      "cat": "调试调优",
+      "B": "性能度量",
+      "C": "端到端关联率",
+      "weight": 0.0625,
+      "formula": "rtask=可关联/硬件总数, S=10·rtask",
+      "source_type": "hardware"
+    },
+    {
+      "code": "8.a.1",
+      "cat": "Agent友好",
+      "B": "Agent性能达成率",
+      "C": "Agent性能达成率",
+      "weight": 1,
+      "formula": "η=Pagent/Ptheory, S=10·clamp(η,0,1)",
+      "source_type": "agent"
+    },
+    {
+      "code": "9.a.1",
+      "cat": "开发效率",
+      "B": "版本开发代价",
+      "C": "版本开发代价",
+      "weight": 1,
+      "formula": "S=0.25SN+0.35Sγ+0.4Sρ",
+      "source_type": "static"
+    }
+  ],
+  "patterns": [
+    {
+      "id": 1,
+      "name": "Elementwise · silu/gelu/add",
+      "op": "NA",
+      "weight": 0.0627,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "易",
+        "控制模型": "易",
+        "访存模型": "易"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Broadcast · bias_add",
+      "op": "NA",
+      "weight": 0.0206,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "易",
+        "控制模型": "易",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Reduction · sum/mean/max",
+      "op": "NA",
+      "weight": 0.0198,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "难",
+        "计算模型": "中",
+        "控制模型": "易",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Contraction · matmul/linear",
+      "op": "Matmul,QuantMatmul",
+      "weight": 0.1552,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "难",
+        "计算模型": "中",
+        "控制模型": "中",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 5,
+      "name": "ArgReduce · argmax/argmin",
+      "op": "argmax",
+      "weight": 0.0201,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Layout Transform · View",
+      "op": "ViewCopy",
+      "weight": 0.0395,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "中",
+        "计算模型": "中",
+        "控制模型": "易",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 7,
+      "name": "Padding · pad",
+      "op": "padding",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 8,
+      "name": "IndexGather · gather/embedding",
+      "op": "GatherV2",
+      "weight": 0.0228,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "中",
+        "计算模型": "中",
+        "控制模型": "易",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 9,
+      "name": "ScatterUpdate · scatter",
+      "op": "NA",
+      "weight": 0.0197,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "中",
+        "计算模型": "中",
+        "控制模型": "易",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 10,
+      "name": "AtomicUpdate · scatter_add",
+      "op": "NA",
+      "weight": 0.0211,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "易",
+        "计算模型": "易",
+        "控制模型": "难",
+        "访存模型": "易"
+      }
+    },
+    {
+      "id": 11,
+      "name": "Interpolation · grid_sample",
+      "op": "ResizeBilinearV2",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "中",
+        "计算模型": "难",
+        "控制模型": "易",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 12,
+      "name": "MaskPredicate · where",
+      "op": "NA",
+      "weight": 0.0193,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "易"
+      }
+    },
+    {
+      "id": 13,
+      "name": "SortSelect · topk/sort",
+      "op": "NA",
+      "weight": 0.0197,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 14,
+      "name": "Histogram · bincount",
+      "op": "NA",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "中",
+        "计算模型": "中",
+        "控制模型": "易",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 15,
+      "name": "SlidingWindow · conv2d/pool",
+      "op": "Conv2dV2",
+      "weight": 0.0193,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 16,
+      "name": "ControlFlow · cond/while",
+      "op": "ctcloss",
+      "weight": 0.0196,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "易",
+        "控制模型": "中",
+        "访存模型": "易"
+      }
+    },
+    {
+      "id": 17,
+      "name": "Recurrence · cumsum/lstm",
+      "op": "cumsum",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 18,
+      "name": "MegaKernel · MegaMoe",
+      "op": "MegaMoe",
+      "weight": 0.0433,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "难",
+        "计算模型": "中",
+        "控制模型": "难",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 19,
+      "name": "Spectral · fft/dct",
+      "op": "NA",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 20,
+      "name": "DynamicShape · 动态batch",
+      "op": "NA",
+      "weight": 0.0192,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "中",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 21,
+      "name": "RandomSampling · dropout",
+      "op": "NA",
+      "weight": 0.0193,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "难",
+        "控制模型": "易",
+        "访存模型": "易"
+      }
+    },
+    {
+      "id": 22,
+      "name": "Norm 类",
+      "op": "RmsNorm,GroupNormGrad",
+      "weight": 0.0303,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 23,
+      "name": "Sparse · sparse.mm",
+      "op": "NA",
+      "weight": 0.0193,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    },
+    {
+      "id": 24,
+      "name": "Quantization · int8/fp8",
+      "op": "DynamicMxQuant",
+      "weight": 0.0402,
+      "difficulty": {
+        "系统规格": "易",
+        "内存模型": "易",
+        "计算模型": "难",
+        "控制模型": "中",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 25,
+      "name": "CollectiveComm · all_reduce",
+      "op": "dispatch+combine",
+      "weight": 0.0518,
+      "difficulty": {
+        "系统规格": "中",
+        "内存模型": "易",
+        "计算模型": "易",
+        "控制模型": "难",
+        "访存模型": "中"
+      }
+    },
+    {
+      "id": 26,
+      "name": "FusedComposite · softmax/FA",
+      "op": "QSMLA,QLI",
+      "weight": 0.2211,
+      "difficulty": {
+        "系统规格": "难",
+        "内存模型": "难",
+        "计算模型": "难",
+        "控制模型": "难",
+        "访存模型": "难"
+      }
+    }
+  ],
+  "weights": {
+    "categories": {
+      "系统规格": 1,
+      "内存模型": 1,
+      "计算模型": 1,
+      "控制模型": 1,
+      "访存模型": 1,
+      "调试调优": 1,
+      "Agent友好": 1,
+      "开发效率": 1
+    }
+  },
+  "hw_defaults": {
+    "N": 0,
+    "Bpeak_GBs": 0,
+    "cacheline_B": 64,
+    "tile_min": 8192,
+    "tile_max": 65536,
+    "burst_min": 32,
+    "burst_max": 256,
+    "buffers": [
+      {
+        "name": "UB",
+        "align_B": 0,
+        "cap_KiB": 0
+      },
+      {
+        "name": "L1",
+        "align_B": 0,
+        "cap_KiB": 0
+      },
+      {
+        "name": "L0C",
+        "align_B": 0,
+        "cap_KiB": 0
+      }
+    ],
+    "ICache_KiB": 0,
+    "DCache_KiB": 0,
+    "pipe_ref": 3,
+    "competitor_apis": 0,
+    "quant_baseline_types": "INT4,INT8,FP8,INT2,NF4,BF16_FP8"
+  },
+  "scores": {
+    "1.a.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集 TileSize/BurstLen/Stride/CoreNum 在 60/90/99% 带宽下的值，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集 TileSize/BurstLen/Stride/CoreNum 在 60/90/99% 带宽下的值，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集 TileSize/BurstLen/Stride/CoreNum 在 60/90/99% 带宽下的值，暂时设为5"
+        }
+      }
+    },
+    "3.a.1": {
+      "AscendC": {
+        "score": 3.0,
+        "source": "static",
+        "detail": {
+          "align_decls": 14
+        }
+      },
+      "SuperScalar": {
+        "score": 0,
+        "source": "static",
+        "detail": {
+          "align_decls": 94
+        }
+      },
+      "SIMT": {
+        "score": 0,
+        "source": "static",
+        "detail": {
+          "align_decls": 23
+        }
+      }
+    },
+    "3.a.2": {
+      "AscendC": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需Benchmark运行时采集带宽达成率及代码修改比/圈复杂度，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需Benchmark运行时采集带宽达成率及代码修改比/圈复杂度，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需Benchmark运行时采集带宽达成率及代码修改比/圈复杂度，暂时设为5"
+        }
+      }
+    },
+    "3.a.3": {
+      "AscendC": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "pipeline_switches": 0
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "pipeline_switches": 0
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "pipeline_switches": 0
+        }
+      }
+    },
+    "3.a.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集存活节点数×TileSize/buffer容量，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集存活节点数×TileSize/buffer容量，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需运行时采集存活节点数×TileSize/buffer容量，暂时设为5"
+        }
+      }
+    },
+    "3.a.5": {
+      "AscendC": {
+        "score": 9.8,
+        "source": "static",
+        "detail": {
+          "total_lines": 219745,
+          "dma_lines": 1562,
+          "ratio": 0.0071
+        }
+      },
+      "SuperScalar": {
+        "score": 9.0,
+        "source": "static",
+        "detail": {
+          "total_lines": 85181,
+          "dma_lines": 2494,
+          "ratio": 0.0293
+        }
+      },
+      "SIMT": {
+        "score": 8.0,
+        "source": "static",
+        "detail": {
+          "total_lines": 4512,
+          "dma_lines": 270,
+          "ratio": 0.0598
+        }
+      }
+    },
+    "3.b.1": {
+      "AscendC": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "coh_lines": 2,
+          "ratio": 0.0
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "coh_lines": 2,
+          "ratio": 0.0
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "coh_lines": 3,
+          "ratio": 0.0007
+        }
+      }
+    },
+    "3.b.2": {
+      "AscendC": {
+        "score": 6,
+        "source": "static",
+        "detail": {
+          "hint_types": 2
+        }
+      },
+      "SuperScalar": {
+        "score": 10,
+        "source": "static",
+        "detail": {
+          "hint_types": 0
+        }
+      },
+      "SIMT": {
+        "score": 8,
+        "source": "static",
+        "detail": {
+          "hint_types": 1
+        }
+      }
+    },
+    "3.b.3": {
+      "AscendC": {
+        "score": 10,
+        "source": "static",
+        "detail": {
+          "cluster_perceived": 0,
+          "die_perceived": 0
+        }
+      },
+      "SuperScalar": {
+        "score": 10,
+        "source": "static",
+        "detail": {
+          "cluster_perceived": 0,
+          "die_perceived": 0
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "static",
+        "detail": {
+          "cluster_perceived": 1,
+          "die_perceived": 0
+        }
+      }
+    },
+    "3.b.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需 ICache miss率 profiling，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需 ICache miss率 profiling，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需 ICache miss率 profiling，暂时设为5"
+        }
+      }
+    },
+    "4.a.1": {
+      "AscendC": {
+        "score": 4.7,
+        "source": "static",
+        "detail": {
+          "total_apis": 2318,
+          "violated": 1225,
+          "ratio": 0.5285
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "total_apis": 60,
+          "violated": 0,
+          "ratio": 0.0
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "total_apis": 26,
+          "violated": 0,
+          "ratio": 0.0
+        }
+      }
+    },
+    "4.a.2": {
+      "AscendC": {
+        "score": 7.9,
+        "source": "static",
+        "detail": {
+          "total_funcs": 2318,
+          "dup_funcs": 493,
+          "ratio": 0.2127
+        }
+      },
+      "SuperScalar": {
+        "score": 1.3,
+        "source": "static",
+        "detail": {
+          "total_funcs": 60,
+          "dup_funcs": 52,
+          "ratio": 0.8667
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "total_funcs": 26,
+          "dup_funcs": 0,
+          "ratio": 0.0
+        }
+      }
+    },
+    "4.a.3": {
+      "AscendC": {
+        "score": 8.1,
+        "source": "static",
+        "detail": {
+          "avg_params": 1.52
+        }
+      },
+      "SuperScalar": {
+        "score": 8.3,
+        "source": "static",
+        "detail": {
+          "avg_params": 1.38
+        }
+      },
+      "SIMT": {
+        "score": 8.0,
+        "source": "static",
+        "detail": {
+          "avg_params": 1.61
+        }
+      }
+    },
+    "4.a.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "manual",
+        "detail": {
+          "note": "需与竞品(NV)API逐项对照，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "manual",
+        "detail": {
+          "note": "需与竞品(NV)API逐项对照，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "manual",
+        "detail": {
+          "note": "需与竞品(NV)API逐项对照，暂时设为5"
+        }
+      }
+    },
+    "4.b.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需随路/非随路 A/B profiling 采集性能比值，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需随路/非随路 A/B profiling 采集性能比值，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "profiling",
+        "detail": {
+          "note": "需随路/非随路 A/B profiling 采集性能比值，暂时设为5"
+        }
+      }
+    },
+    "4.b.2": {
+      "AscendC": {
+        "score": 7.9,
+        "source": "static",
+        "detail": {
+          "quant_ratio": 0.0331,
+          "types_found": [
+            "INT4",
+            "INT8",
+            "FP8",
+            "INT2"
+          ],
+          "coverage": 0.67
+        }
+      },
+      "SuperScalar": {
+        "score": 6.2,
+        "source": "static",
+        "detail": {
+          "quant_ratio": 0.0192,
+          "types_found": [
+            "FP8"
+          ],
+          "coverage": 0.17
+        }
+      },
+      "SIMT": {
+        "score": 6.6,
+        "source": "static",
+        "detail": {
+          "quant_ratio": 0.0027,
+          "types_found": [
+            "FP8"
+          ],
+          "coverage": 0.17
+        }
+      }
+    },
+    "5.a.1": {
+      "AscendC": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "total_switches": 0,
+          "avg_per_file": 0.0
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "total_switches": 35,
+          "avg_per_file": 0.05
+        }
+      },
+      "SIMT": {
+        "score": 5.6,
+        "source": "static",
+        "detail": {
+          "total_switches": 102,
+          "avg_per_file": 4.43
+        }
+      }
+    },
+    "5.b.1": {
+      "AscendC": {
+        "score": 8.6,
+        "source": "static",
+        "detail": {
+          "sync_lines": 9344,
+          "ratio": 0.0425
+        }
+      },
+      "SuperScalar": {
+        "score": 9.6,
+        "source": "static",
+        "detail": {
+          "sync_lines": 1120,
+          "ratio": 0.0131
+        }
+      },
+      "SIMT": {
+        "score": 7.6,
+        "source": "static",
+        "detail": {
+          "sync_lines": 321,
+          "ratio": 0.0711
+        }
+      }
+    },
+    "5.b.2": {
+      "AscendC": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "intra_sync_lines": 0,
+          "ratio": 0.0
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "intra_sync_lines": 0,
+          "ratio": 0.0
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "intra_sync_lines": 5,
+          "ratio": 0.0011
+        }
+      }
+    },
+    "5.c.1": {
+      "AscendC": {
+        "score": 9.8,
+        "source": "static",
+        "detail": {
+          "pc_lines": 1482,
+          "ratio": 0.0067
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "pc_lines": 4,
+          "ratio": 0.0
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "pc_lines": 2,
+          "ratio": 0.0004
+        }
+      }
+    },
+    "5.d.1": {
+      "AscendC": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "scalar_code_lines": 1,
+          "ratio": 0.0,
+          "note": "时间维度需profiling"
+        }
+      },
+      "SuperScalar": {
+        "score": 9.7,
+        "source": "static",
+        "detail": {
+          "scalar_code_lines": 890,
+          "ratio": 0.0104,
+          "note": "时间维度需profiling"
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "scalar_code_lines": 2,
+          "ratio": 0.0004,
+          "note": "时间维度需profiling"
+        }
+      }
+    },
+    "5.e.1": {
+      "AscendC": {
+        "score": 9.5,
+        "source": "static",
+        "detail": {
+          "init_config_lines": 2808,
+          "ratio": 0.0128,
+          "note": "时间维度需profiling"
+        }
+      },
+      "SuperScalar": {
+        "score": 9.9,
+        "source": "static",
+        "detail": {
+          "init_config_lines": 229,
+          "ratio": 0.0027,
+          "note": "时间维度需profiling"
+        }
+      },
+      "SIMT": {
+        "score": 9.9,
+        "source": "static",
+        "detail": {
+          "init_config_lines": 7,
+          "ratio": 0.0016,
+          "note": "时间维度需profiling"
+        }
+      }
+    },
+    "6.a.1": {
+      "AscendC": {
+        "score": 9.8,
+        "source": "static",
+        "detail": {
+          "dma_args_lines": 1688,
+          "ratio": 0.0077
+        }
+      },
+      "SuperScalar": {
+        "score": 9.5,
+        "source": "static",
+        "detail": {
+          "dma_args_lines": 1615,
+          "ratio": 0.019
+        }
+      },
+      "SIMT": {
+        "score": 9.8,
+        "source": "static",
+        "detail": {
+          "dma_args_lines": 32,
+          "ratio": 0.0071
+        }
+      }
+    },
+    "6.a.2": {
+      "AscendC": {
+        "score": 9.8,
+        "source": "static",
+        "detail": {
+          "addr_lines": 1240,
+          "ratio": 0.0056
+        }
+      },
+      "SuperScalar": {
+        "score": 9.9,
+        "source": "static",
+        "detail": {
+          "addr_lines": 194,
+          "ratio": 0.0023
+        }
+      },
+      "SIMT": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "addr_lines": 0,
+          "ratio": 0.0
+        }
+      }
+    },
+    "6.b.1": {
+      "AscendC": {
+        "score": 9.9,
+        "source": "static",
+        "detail": {
+          "alloc_lines": 577,
+          "ratio": 0.0026
+        }
+      },
+      "SuperScalar": {
+        "score": 10.0,
+        "source": "static",
+        "detail": {
+          "alloc_lines": 0,
+          "ratio": 0.0
+        }
+      },
+      "SIMT": {
+        "score": 9.9,
+        "source": "static",
+        "detail": {
+          "alloc_lines": 10,
+          "ratio": 0.0022
+        }
+      }
+    },
+    "7.a.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.a.2": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.a.3": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.a.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.b.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.b.2": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.b.3": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.b.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.c.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.2": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.3": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.4": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.5": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.6": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "7.d.7": {
+      "AscendC": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "hardware",
+        "detail": {
+          "note": "需目标硬件故障注入/Profiling/验证测试，暂时设为5"
+        }
+      }
+    },
+    "8.a.1": {
+      "AscendC": {
+        "score": 5,
+        "source": "agent",
+        "detail": {
+          "note": "需AI Agent自动生成算子代码后部署实测，暂时设为5"
+        }
+      },
+      "SuperScalar": {
+        "score": 5,
+        "source": "agent",
+        "detail": {
+          "note": "需AI Agent自动生成算子代码后部署实测，暂时设为5"
+        }
+      },
+      "SIMT": {
+        "score": 5,
+        "source": "agent",
+        "detail": {
+          "note": "需AI Agent自动生成算子代码后部署实测，暂时设为5"
+        }
+      }
+    },
+    "9.a.1": {
+      "AscendC": {
+        "score": 3.8,
+        "source": "static",
+        "detail": {
+          "versions": 6,
+          "code_files": 619,
+          "total_lines": 219745,
+          "note": "性能提升比需Benchmark对比"
+        }
+      },
+      "SuperScalar": {
+        "score": 4.8,
+        "source": "static",
+        "detail": {
+          "versions": 4,
+          "code_files": 713,
+          "total_lines": 85181,
+          "note": "性能提升比需Benchmark对比"
+        }
+      },
+      "SIMT": {
+        "score": 3.8,
+        "source": "static",
+        "detail": {
+          "versions": 6,
+          "code_files": 23,
+          "total_lines": 4512,
+          "note": "性能提升比需Benchmark对比"
+        }
+      }
+    }
+  }
+}

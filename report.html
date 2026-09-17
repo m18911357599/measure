@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>NPU 易用性度量报告</title>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--t:#c9d1d9;--t2:#8b949e;--g:#3fb950;--y:#d29922;--r:#f85149;--b:#58a6ff;--p:#bc8cff;--a:#1f6feb}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--t)}
+.nav{background:var(--card);border-bottom:1px solid var(--border);padding:6px 16px;position:sticky;top:0;z-index:99;display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+.nav b{font-size:13px;color:var(--b);margin-right:8px}
+.nav a{font-size:11px;color:var(--t2);text-decoration:none;padding:4px 8px;border-radius:4px;cursor:pointer}
+.nav a:hover,.nav a.on{background:var(--a);color:#fff}
+.main{max-width:1500px;margin:0 auto;padding:16px}
+h2{font-size:17px;color:var(--p);border-bottom:1px solid var(--border);padding-bottom:4px;margin:20px 0 10px}
+h3{font-size:14px;color:var(--b);margin:12px 0 6px}
+.scards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.sc .v{font-size:12px;color:var(--t2)}
+.sc .s{font-size:28px;font-weight:bold;margin:4px 0}
+.sc .u{font-size:10px;color:var(--t2)}
+table{width:100%;border-collapse:collapse;font-size:11px;margin:6px 0}
+th,td{padding:5px 6px;border:1px solid var(--border);text-align:center}
+th{background:var(--card);color:var(--t2);font-weight:600}
+td{background:var(--bg)}
+tr:hover td{filter:brightness(1.1)}
+.g8{color:var(--g);font-weight:bold}.g5{color:var(--y)}.g2{color:var(--r)}.g0{color:var(--t2)}
+.cg{background:rgba(63,185,80,0.18)}.cy{background:rgba(210,153,34,0.15)}.cr{background:rgba(248,81,73,0.12)}
+.fml{font-family:monospace;font-size:10px;color:var(--y);background:rgba(210,153,34,0.06);padding:4px 8px;border-radius:4px;margin:4px 0;white-space:pre-wrap}
+.note{font-size:10px;color:var(--t2)}
+.warn{background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.25);padding:6px 10px;font-size:11px;color:var(--y);margin:6px 0;border-radius:4px}
+.inp{background:var(--bg);border:1px solid var(--border);color:var(--t);padding:3px 5px;border-radius:3px;font-size:11px;width:64px;text-align:center}
+.inp:focus{border-color:var(--b);outline:none}
+.inp2{width:90px}
+.btn{padding:5px 12px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:11px;background:var(--a);color:#fff}
+.btn:hover{opacity:.8}
+.br{display:flex;gap:8px;align-items:center;margin:4px 0}
+.br .l{width:70px;font-size:10px;text-align:right;color:var(--t2)}
+.br .t{flex:1;height:14px;background:var(--bg);border-radius:7px;overflow:hidden}
+.br .f{height:100%;border-radius:7px;transition:width .4s}
+.br .v{width:32px;font-size:11px;font-weight:bold;text-align:right}
+.cfg{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;margin:8px 0}
+.cfg h4{color:var(--b);font-size:12px;margin-bottom:6px}
+.cfg .r{display:flex;align-items:center;gap:6px;margin:3px 0}
+.cfg .r label{font-size:10px;color:var(--t2);min-width:120px}
+.cfg .r input{background:var(--bg);border:1px solid var(--border);color:var(--t);padding:2px 5px;border-radius:3px;font-size:10px;width:80px}
+.toast{color:var(--g);font-size:11px;margin-left:8px;display:none}
+@media(max-width:768px){.scards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <b>NPU 易用性度量</b>
+  <a href="#summary" class="on" onclick="go('summary')">汇总</a>
+  <a href="#cat-system" onclick="go('cat','系统规格')">系统规格</a>
+  <a href="#cat-memory" onclick="go('cat','内存模型')">内存模型</a>
+  <a href="#cat-compute" onclick="go('cat','计算模型')">计算模型</a>
+  <a href="#cat-control" onclick="go('cat','控制模型')">控制模型</a>
+  <a href="#cat-memacc" onclick="go('cat','访存模型')">访存模型</a>
+  <a href="#cat-debug" onclick="go('cat','调试调优')">调试调优</a>
+  <a href="#cat-agent" onclick="go('cat','Agent友好')">Agent友好</a>
+  <a href="#cat-dev" onclick="go('cat','开发效率')">开发效率</a>
+  <a href="#weights" onclick="go('weights')">权重配置</a>
+  <a href="#hwcfg" onclick="go('hwcfg')">芯片配置</a>
+</div>
+<div class="main" id="main"></div>
+
+<script>
+const V=['AscendC','SuperScalar','SIMT'];
+const VC={AscendC:'#58a6ff',SuperScalar:'#bc8cff',SIMT:'#3fb950'};
+const DIFF={'易':8,'中':5,'难':2};
+let D=null; // loaded JSON data
+let HW={};
+let EDITED={}; // manually edited scores
+
+// 1.a.1 访存带宽原始测量数据 (per version, per dimension, per tier)
+const BAND_DIMS=['TileSize','BurstLen','stride','coreConc'];
+const BAND_TIERS=['60%','90%','99%'];
+function loadBandData(){ try{return JSON.parse(localStorage.getItem('npu_band_data')||'{}');}catch(e){return{};} }
+function saveBandData(data){ localStorage.setItem('npu_band_data',JSON.stringify(data)); }
+function defaultBandVal(dim,tier){
+  if(dim==='TileSize') return tier==='60%'?32768:tier==='90%'?49152:65536;
+  if(dim==='BurstLen') return tier==='60%'?128:tier==='90%'?64:32;
+  if(dim==='stride') return tier==='60%'?32:tier==='90%'?8:1;
+  const N=HW.N||64;
+  if(dim==='coreConc') return tier==='60%'?Math.round(N/2):tier==='90%'?Math.round(N/4):Math.round(N/8);
+  return 0;
+}
+function bandScore(dim,val,tier){
+  if(dim==='TileSize') return val>=65536?0:val<=8192?10:10*(Math.log(65536)-Math.log(val))/(Math.log(65536)-Math.log(8192));
+  if(dim==='BurstLen') return val<=32?10:val>=256?0:10*(Math.log(256)-Math.log(val))/(Math.log(256)-Math.log(32));
+  if(dim==='stride') return val<=1?10:val>=64?0:10*(Math.log(64)-Math.log(val))/(Math.log(64)-Math.log(1));
+  const N=HW.N||64;
+  if(dim==='coreConc') return val<=1?10:val>=N?0:10*(Math.log(N)-Math.log(val))/(Math.log(N)-Math.log(1));
+  return 0;
+}
+
+function S(v){return v==null?'—':(typeof v==='number'?v.toFixed(1):v);}
+function C(v){if(v==null)return'g0';if(v>=8)return'g8';if(v>=5)return'g5';return'g2';}
+function BC(v){if(v==null)return'#30363d';if(v>=8)return'#3fb950';if(v>=5)return'#d29922';return'#f85149';}
+function W(si){return si.weight||0;}
+
+function loadHW(){try{const s=localStorage.getItem('npu_hw_v2');HW=s?JSON.parse(s):(D?JSON.parse(JSON.stringify(D.hw_defaults)):{});}catch(e){HW={};}}
+function saveHW(){localStorage.setItem('npu_hw_v2',JSON.stringify(HW));showToast('hwtoast');}
+
+function getScore(code,ver){
+  const k=code+'_'+ver;
+  if(EDITED[k]!==undefined)return EDITED[k];
+  if(!D||!D.scores||!D.scores[code])return null;
+  const s=D.scores[code][ver];
+  return (s&&s.score!==undefined)?s.score:null;
+}
+function setScore(code,ver,val){
+  EDITED[code+'_'+ver]=val===null||val===''?null:Number(val);
+  localStorage.setItem('npu_edited',JSON.stringify(EDITED));
+}
+
+function catAvg(cat){
+  const items=(D?D.sub_items:[]).filter(s=>s.cat===cat);
+  let r={};
+  for(const v of V){
+    let sum=0,wsum=0;
+    for(const si of items){
+      const sc=getScore(si.code,v);
+      if(sc!==null){sum+=sc*W(si);wsum+=W(si);}
+    }
+    r[v]=wsum>0?sum/wsum:null;
+  }
+  return r;
+}
+
+function overall(){
+  let r={};
+  for(const v of V){
+    let sum=0,n=0;
+    for(const cat of(D?D.categories:[])){
+      const a=catAvg(cat.name);
+      if(a[v]!==null){sum+=a[v];n++;}
+    }
+    r[v]=n>0?sum/n:null;
+  }
+  return r;
+}
+
+function renderSummary(){
+  const ov=overall();
+  let h='<h2>汇总</h2><div class="scards">';
+  for(const v of V) h+=`<div class="sc"><div class="v">${v}</div><div class="s" style="color:${VC[v]}">${S(ov[v])}</div><div class="u">综合易用性</div></div>`;
+  h+='</div>';
+
+  h+='<h3>分类得分</h3><table><thead><tr><th>分类</th>';
+  for(const v of V) h+=`<th>${v}</th>`;
+  h+='<th>领先</th></tr></thead><tbody>';
+  for(const cat of(D?D.categories:[])){
+    const a=catAvg(cat.name);
+    h+=`<tr><td style="text-align:left;font-weight:500">${cat.name}</td>`;
+    let best=null,bv='';
+    for(const v of V){h+=`<td class="${C(a[v])}">${S(a[v])}</td>`;if(a[v]!==null&&(best===null||a[v]>best)){best=a[v];bv=v;}}
+    h+=`<td style="color:${VC[bv]||'var(--t2)'}">${bv||'—'}</td></tr>`;
+  }
+  h+='</tbody></table>';
+
+  // pattern cross-table - compact
+  h+='<h3>Pattern × 分类 难度评级</h3><div class="note">易(8) 中(5) 难(2) — 格式: 难度×分值</div>';
+  const cats5=(D?D.categories:[]).filter(c=>parseInt(c.code)<=6);
+  const catAbbr={'系统规格':'规格','内存模型':'内存','计算模型':'计算','控制模型':'控制','访存模型':'访存'};
+  h+='<div style="overflow-x:auto"><table><thead><tr><th style="width:30px">#</th><th style="width:130px;text-align:left">Pattern</th>';
+  for(const v of V) h+=`<th colspan="${cats5.length+1}" style="color:${VC[v]}">${v}</th>`;
+  h+='</tr><tr><th></th><th></th>';
+  for(const v of V){
+    for(const c of cats5) h+=`<th style="font-size:9px;padding:2px">${catAbbr[c.name]||c.name}</th>`;
+    h+='<th style="font-size:9px">均</th>';
+  }
+  h+='</tr></thead><tbody>';
+  for(const p of (D?D.patterns:[])){
+    h+=`<tr><td>${p.id}</td><td style="text-align:left;white-space:nowrap;font-size:10px">${p.name}</td>`;
+    for(const v of V){
+      let sum=0,n=0;
+      for(const c of cats5){
+        const d=p.difficulty[c.name];
+        const val=DIFF[d]||null; if(val){sum+=val;n++;}
+        const cls=val===8?'cg g8':val===5?'cy g5':val===2?'cr g2':'';
+        h+=`<td class="${cls}" style="font-size:10px;padding:2px">${d||'—'}<span style="font-size:8px;opacity:.7">×${val||0}</span></td>`;
+      }
+      const avg=n>0?sum/n:0;
+      h+=`<td class="${C(avg)}" style="font-weight:bold;font-size:10px">${n>0?avg.toFixed(1):'—'}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function renderCat(catName){
+  const cat=(D?D.categories:[]).find(c=>c.name===catName);
+  if(!cat)return'<p>未找到分类</p>';
+  const items=(D?D.sub_items:[]).filter(s=>s.cat===catName);
+  const a=catAvg(catName);
+
+  let h=`<h2>${catName}</h2><p class="note">${cat.purpose}</p>`;
+  h+='<div class="scards">';
+  for(const v of V) h+=`<div class="sc"><div class="v">${v}</div><div class="s" style="color:${VC[v]};font-size:22px">${S(a[v])}</div><div class="u">加权均分</div></div>`;
+  h+='</div>';
+
+  // consolidated sub-item × version score table
+  h+='<h3>度量子项得分表</h3>';
+  h+='<table><thead><tr><th style="text-align:left">编码</th><th style="text-align:left">度量子项</th><th style="width:50px">权重</th>';
+  for(const v of V) h+=`<th style="color:${VC[v]}">${v}</th>`;
+  h+='<th>领先</th></tr></thead><tbody>';
+  for(const si of items){
+    h+=`<tr><td style="font-size:10px">${si.code}</td><td style="text-align:left;font-size:11px">${si.C}</td><td style="color:var(--t2);font-size:10px">${W(si).toFixed(3)}</td>`;
+    let best=null,bv='';
+    for(const v of V){
+      const sc=getScore(si.code,v);
+      h+=`<td class="${C(sc)}" style="font-size:12px">${S(sc)}</td>`;
+      if(sc!==null&&(best===null||sc>best)){best=sc;bv=v;}
+    }
+    h+=`<td style="color:${VC[bv]||'var(--t2)'};font-size:10px">${bv||'—'}</td></tr>`;
+  }
+  h+='</tbody></table>';
+
+  // detailed sub-item cards
+  h+='<h3>子项详情</h3>';
+
+  if(catName==='系统规格') h+=renderBandDetail();
+  if(catName==='内存模型') h+=renderMemoryDetail();
+  if(catName==='计算模型') h+=renderComputeDetail();
+  if(catName==='控制模型') h+=renderControlDetail();
+  if(catName==='访存模型') h+=renderMemaccDetail();
+  if(catName==='开发效率') h+=renderDevDetail();
+  // generic fallback for remaining sub-items in any category
+  h+=renderCatExpand(catName);
+
+  for(const si of items){
+    if(catName==='系统规格'&&si.code==='1.a.1') continue; // skip, shown in band detail
+    h+=`<div style="background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;margin:8px 0">`;
+    h+=`<b style="font-size:12px;color:var(--b)">${si.code} ${si.C}</b> <span class="note">${si.B} · Weight=${si.weight} · ${si.source_type}</span>`;
+    h+=`<div class="fml">${si.formula}</div>`;
+
+    for(const v of V){
+      const det=D&&D.scores&&D.scores[si.code]&&D.scores[si.code][v]?D.scores[si.code][v].detail:null;
+      if(det&&det.note) h+=`<div class="warn">[${v}] ${det.note}</div>`;
+    }
+
+    h+='<div class="br">';
+    for(const v of V){
+      const sc=getScore(si.code,v);
+      h+=`<div class="l" style="color:${VC[v]};font-size:9px">${v}</div><div class="t"><div class="f" style="width:${sc!=null?sc*10:0}%;background:${BC(sc)}"></div></div>
+        <input class="inp" type="number" step="0.1" min="0" max="10" value="${sc!=null?sc:''}" placeholder="—" onchange="setScore('${si.code}','${v}',this.value);go('cat','${catName}')" style="width:48px;font-size:11px">
+        <span class="${C(sc)}" style="font-size:11px;min-width:28px">${S(sc)}</span>`;
+    }
+    h+='</div></div>';
+  }
+  return h;
+}
+
+function renderDebug(){
+  let h='<h2>调试调优</h2><div class="warn">调试调优所有度量项均需在目标硬件上通过故障注入/Profiling/验证测试采集。</div>';
+  h+='<table><thead><tr><th>编码</th><th>度量子项</th><th>采集方式</th><th>AscendC</th><th>SuperScalar</th><th>SIMT</th></tr></thead><tbody>';
+  const items=(D?D.sub_items:[]).filter(s=>s.cat==='调试调优');
+  for(const si of items){
+    h+=`<tr><td>${si.code}</td><td style="text-align:left">${si.C}</td><td>${si.source_type}</td>`;
+    for(const v of V){
+      const sc=getScore(si.code,v);
+      h+=`<td><input class="inp" type="number" step="0.1" min="0" max="10" value="${sc!=null?sc:''}" placeholder="—" onchange="setScore('${si.code}','${v}',this.value);go('cat','调试调优')"></td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table>';
+  return h;
+}
+
+function renderWeights(){
+  let h='<h2>权重配置</h2><div class="note">修改后自动保存到 localStorage。分类权重等权=1，子项权重为分类内占比。</div>';
+  const cats={};
+  for(const si of(D?D.sub_items:[])){if(!cats[si.cat])cats[si.cat]=[];cats[si.cat].push(si);}
+  for(const cat in cats){
+    const items=cats[cat];let sum=0;items.forEach(s=>sum+=W(s));
+    h+=`<div class="cfg"><h4>${cat} (合计: <span style="color:${Math.abs(sum-1)<0.01?'var(--g)':'var(--r)'}">${sum.toFixed(4)}</span>)</h4>`;
+    h+='<table><thead><tr><th>编码</th><th>度量子项</th><th>权重</th><th>公式</th></tr></thead><tbody>';
+    for(const si of items){
+      h+=`<tr><td>${si.code}</td><td style="text-align:left">${si.C}</td>
+        <td><input class="inp inp2" type="number" step="0.01" min="0" max="1" value="${W(si).toFixed(4)}" onchange="si.weight=Number(this.value);normalizeCat('${cat}');D.weights.sub_items=collectWeights();saveWeights();go('weights')"></td>
+        <td style="font-size:9px;text-align:left">${si.formula.substring(0,60)}</td></tr>`;
+    }
+    h+='</tbody></table>';
+    h+=`<button class="btn" onclick="resetCatWeights('${cat}');go('weights')" style="margin:4px 0">归一化 (等权)</button></div>`;
+  }
+
+  // pattern difficulty weights
+  h+='<h3>Pattern 难度权重</h3><div class="note">每个 Pattern 在各分类下的难度权重（难=5, 中=3, 易=1）。用于加权聚合时调节各 Pattern 影响力。</div>';
+  const cats5=(D?D.categories:[]).filter(c=>parseInt(c.code)<=6);
+  const patWeights=loadPatWeights();
+  h+='<div style="overflow-x:auto"><table><thead><tr><th style="width:30px">#</th><th style="width:130px;text-align:left">Pattern</th>';
+  for(const c of cats5) h+=`<th style="font-size:9px">${c.name}</th>`;
+  h+='</tr></thead><tbody>';
+  for(const p of(D?D.patterns:[])){
+    h+=`<tr><td>${p.id}</td><td style="text-align:left;font-size:10px;white-space:nowrap">${p.name}</td>`;
+    for(const c of cats5){
+      const key=p.id+'_'+c.name;
+      const defVal=DIFF_W[p.difficulty[c.name]]||1;
+      const val=patWeights[key]!==undefined?patWeights[key]:defVal;
+      const cls=val===5?'cg g8':val===3?'cy g5':'cr g2';
+      h+=`<td class="${cls}"><input class="inp" type="number" step="1" min="1" max="5" value="${val}" onchange="updatePatWeight('${key}',Number(this.value));go('weights')" style="width:44px;font-size:10px"></td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+  h+=`<button class="btn" onclick="resetPatWeights();go('weights')" style="margin-top:6px">重置为默认值</button>`;
+
+  return h;
+}
+
+function normalizeCat(cat){
+  const items=D.sub_items.filter(s=>s.cat===cat);
+  let sum=0;items.forEach(s=>sum+=s.weight||0);
+  if(sum>0&&Math.abs(sum-1)>0.001) items.forEach(s=>s.weight=(s.weight||0)/sum);
+}
+function resetCatWeights(cat){
+  const items=D.sub_items.filter(s=>s.cat===cat);
+  items.forEach(s=>s.weight=1/items.length);
+  D.weights.sub_items=collectWeights();
+  saveWeights();
+}
+function collectWeights(){
+  const w={};
+  for(const si of D.sub_items) w[si.code]=si.weight;
+  return w;
+}
+function saveWeights(){
+  localStorage.setItem('npu_weights_v2',JSON.stringify(D.weights));
+  showToast('wtoast');
+}
+
+// pattern difficulty weights (难=5, 中=3, 易=1)
+const DIFF_W={'易':1,'中':3,'难':5};
+function loadPatWeights(){try{return JSON.parse(localStorage.getItem('npu_pat_weights')||'{}');}catch(e){return{};}}
+function updatePatWeight(key,val){const pw=loadPatWeights();pw[key]=val;localStorage.setItem('npu_pat_weights',JSON.stringify(pw));}
+function resetPatWeights(){localStorage.removeItem('npu_pat_weights');}
+
+function renderBandDetail(){
+  var bd=loadBandData();
+  var h='<div class="cfg"><h4>📶 1.a.1 访存带宽 — 四维度 × 三档分解</h4>';
+  h+='<div class="fml">TileSize: S=10·(ln(65536)-ln(T))/(ln(65536)-ln(8192)) [T越小越好, 达成带宽所需最小Tile, 范围8K~64K]</div>';
+  h+='<div class="fml">BurstLen: S=10·(ln(256)-ln(B))/(ln(256)-ln(32)) [越小越好,32~256B]</div>';
+  h+='<div class="fml">stride: S=10·(ln(64)-ln(s))/(ln(64)-ln(1)) [越小越好,1~63,s mod64≠0]</div>';
+  h+='<div class="fml">coreConc: S=10·(ln(N)-ln(c))/(ln(N)-ln(1)) [越少越好, N='+(HW.N||64)+']</div>';
+  h+='<div class="fml">子项总分: S=1/4·avg(各维度), 各维度 S_X=1/3·(S60+S90+S99)</div>';
+
+  h+='<div style="overflow-x:auto"><table><thead><tr><th rowspan="2" style="width:70px">维度</th>';
+  for(var i=0;i<3;i++) h+='<th colspan="4" style="color:'+VC[V[i]]+'">'+V[i]+'</th>';
+  h+='</tr><tr>';
+  for(var i=0;i<3;i++) h+='<th style="font-size:9px">60%</th><th style="font-size:9px">90%</th><th style="font-size:9px">99%</th><th style="font-size:9px">均</th>';
+  h+='</tr></thead><tbody>';
+
+  for(var di=0;di<BAND_DIMS.length;di++){
+    var dim=BAND_DIMS[di];
+    h+='<tr><td style="text-align:left;font-weight:500">'+dim+'</td>';
+    for(var vi=0;vi<V.length;vi++){
+      var v=V[vi],dimSum=0,dimN=0;
+      for(var ti=0;ti<BAND_TIERS.length;ti++){
+        var tier=BAND_TIERS[ti],key=v+'_'+dim+'_'+tier;
+        var def=defaultBandVal(dim,tier);
+        var val=bd[key]!==undefined?bd[key]:def;
+        var sc=bandScore(dim,val,tier);
+        dimSum+=sc;dimN++;
+        var cls=sc>=8?'g8':sc>=5?'g5':'g2';
+        h+='<td class="'+cls+'" style="font-size:10px;padding:3px">';
+        h+='<span style="font-size:8px;color:var(--t2)">'+tier+'</span><br>';
+        h+='<input class="inp" type="number" value="'+val+'" step="1" onchange="var bd=loadBandData();bd[\''+key+'\']=Number(this.value);saveBandData(bd);go(\'cat\',\'系统规格\')" style="width:48px;font-size:9px">';
+        h+='<br><span class="'+cls+'" style="font-size:10px">S='+sc.toFixed(1)+'</span></td>';
+      }
+      var avg=dimN>0?dimSum/dimN:0;
+      h+='<td class="'+C(avg)+'" style="font-weight:bold">'+avg.toFixed(1)+'</td>';
+    }
+    h+='</tr>';
+  }
+
+  // summary row
+  h+='<tr style="font-weight:bold;background:var(--card)"><td style="text-align:left">子项总分</td>';
+  for(var vi2=0;vi2<V.length;vi2++){
+    var v2=V[vi2],totalSum=0,totalN=0;
+    for(var di2=0;di2<BAND_DIMS.length;di2++){
+      var dim2=BAND_DIMS[di2],dSum=0,dN=0;
+      for(var ti2=0;ti2<BAND_TIERS.length;ti2++){
+        var tier2=BAND_TIERS[ti2],k2=v2+'_'+dim2+'_'+tier2;
+        var def2=defaultBandVal(dim2,tier2);
+        var val2=bd[k2]!==undefined?bd[k2]:def2;
+        dSum+=bandScore(dim2,val2,tier2);dN++;
+      }
+      totalSum+=dN>0?dSum/dN:0;totalN++;
+    }
+    var total=totalN>0?totalSum/totalN:0;
+    h+='<td colspan="4" class="'+C(total)+'">'+total.toFixed(1)+'</td>';
+  }
+  h+='</tr></tbody></table></div>';
+
+  h+='<div style="margin-top:6px;display:flex;gap:8px">';
+  h+='<button class="btn" onclick="resetBandData();go(\'cat\',\'系统规格\')">↺ 重置默认值</button>';
+  h+='</div></div>';
+  return h;
+}
+
+function updateBandVal(key,val){var bd=loadBandData();bd[key]=val;saveBandData(bd);}
+function resetBandData(){localStorage.removeItem('npu_band_data');}
+
+function renderMemoryDetail(){
+  var h='';
+  var memData=loadMemData();
+
+  // --- 3.a.1 对齐颗粒度 ---
+  h+='<div class="cfg"><h4>📏 3.a.1 对齐颗粒度 — 各 Buffer cacheline 对齐</h4>';
+  h+='<div class="fml">Si=10·(ln(64)-ln(s))/ln(64) [s=buffer硬对齐最小粒度, s≤64→10分]</div>';
+  h+='<div class="fml">子项总分: S=1/M·ΣSi (M个buffer均值), 各档相同值</div>';
+  var bufs=HW.buffers||[{name:'UB'},{name:'L1'},{name:'L0C'}];
+  h+='<table><thead><tr><th style="text-align:left">Buffer</th><th>对齐粒度(s)</th><th>得分</th><th style="text-align:left">备注</th></tr></thead><tbody>';
+  for(var i=0;i<bufs.length;i++){
+    var buf=bufs[i],key='buf_align_'+i;
+    var s=memData[key]!==undefined?memData[key]:buf.align_B||0;
+    if(s===0) s=buf.align_B||0;
+    var sc=s<=0?10:s>=64?0:10*(Math.log(64)-Math.log(Math.max(s,1)))/Math.log(64);
+    var cls=sc>=8?'g8':sc>=5?'g5':'g2';
+    h+='<tr><td style="text-align:left">'+(buf.name||'Buffer '+i)+'</td>';
+    h+='<td><input class="inp" type="number" value="'+s+'" step="1" min="1" max="64" onchange="var md=loadMemData();md[\''+key+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:60px"></td>';
+    h+='<td class="'+cls+'">'+sc.toFixed(1)+'</td>';
+    h+='<td style="font-size:9px;text-align:left">s=1→满分, s=64→0</td></tr>';
+  }
+  h+='</tbody></table></div>';
+
+  // --- 3.a.2 bank/bankgroup ---
+  h+='<div class="cfg"><h4>🏦 3.a.2 bank/bankgroup — 代码修改比 + 圈复杂度</h4>';
+  h+='<div class="fml">若默认带宽达成率 p0≥95% → 直接10分; 否则从两个维度度量:</div>';
+  h+='<div class="fml">Sγ=10·(ln(Lt)-ln(Lc+1))/ln(Lt), Lc=修改行数, Lt=总行数</div>';
+  h+='<div class="fml">SV=10·clamp(2-e^(ΔV-1),0,1), ΔV=优化后/原始圈复杂度</div>';
+  h+='<div class="fml">单档: S=0.6·Sγ+0.4·SV, 子项: S=avg(三档)</div>';
+  var bankDims=['代码修改行数Lc','总代码行数Lt','圈复杂度比ΔV'];
+  h+='<table><thead><tr><th>维度</th>';
+  for(var vi=0;vi<3;vi++) h+='<th colspan="4" style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr><tr><th></th>';
+  for(var vi=0;vi<3;vi++) h+='<th>60%</th><th>90%</th><th>99%</th><th>均</th>';
+  h+='</tr></thead><tbody>';
+  for(var di=0;di<bankDims.length;di++){
+    var dim=bankDims[di];
+    h+='<tr><td style="text-align:left;font-size:10px">'+dim+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var v=V[vi],dSum=0,dN=0;
+      for(var ti=0;ti<BAND_TIERS.length;ti++){
+        var tier=BAND_TIERS[ti],k='bank_'+v+'_d'+di+'_'+tier;
+        var def=(di===0)?(tier==='60%'?0:tier==='90%'?10:50):(di===1?200:(tier==='60%'?1.0:tier==='90%'?1.1:1.3));
+        var val=memData[k]!==undefined?memData[k]:def;
+        var sc=0;
+        if(di===0){var Lt=200;sc=val<=0?10:10*(Math.log(Lt)-Math.log(val+1))/Math.log(Lt);}
+        else if(di===1){sc=val;/* display only, Lc needs Lt for calc */}
+        else{sc=10*Math.max(0,Math.min(1,2-Math.exp(val-1)));}
+        if(di===1){sc=0;var LcK='bank_'+v+'_d0_'+tier;var LcVal=memData[LcK]!==undefined?memData[LcK]:0;var dv=10*(Math.log(200)-Math.log(LcVal+1))/Math.log(200);dSum+=dv;dN++;}
+        else{dSum+=sc;dN++;}
+        var cls=sc>=8?'g8':sc>=5?'g5':'g2';
+        h+='<td class="'+cls+'" style="font-size:9px;padding:2px"><input class="inp" type="number" value="'+val+'" step="0.1" style="width:44px;font-size:8px" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')"><br>'+sc.toFixed(1)+'</td>';
+      }
+      var avg=dN>0?dSum/dN:0;
+      h+='<td class="'+C(avg)+'">'+(dN>0?avg.toFixed(1):'—')+'</td>';
+    }
+    h+='</tr>';
+  }
+
+  // summary row for 3.a.2
+  h+='<tr style="font-weight:bold;background:var(--card)"><td style="text-align:left">3.a.2 子项总分</td>';
+  for(var vi=0;vi<3;vi++){
+    var v=V[vi],ts=0,tn=0;
+    for(var ti=0;ti<BAND_TIERS.length;ti++){
+      var tier=BAND_TIERS[ti];
+      var LcK='bank_'+v+'_d0_'+tier;
+      var VK='bank_'+v+'_d2_'+tier;
+      var Lc=memData[LcK]!==undefined?memData[LcK]:0;
+      var dV=memData[VK]!==undefined?memData[VK]:1;
+      var Sg=10*(Math.log(200)-Math.log(Lc+1))/Math.log(200);
+      var Sv=10*Math.max(0,Math.min(1,2-Math.exp(dV-1)));
+      var Sp=0.6*Sg+0.4*Sv;
+      ts+=Sp;tn++;
+    }
+    var tot=tn>0?ts/tn:0;
+    h+='<td colspan="4" class="'+C(tot)+'">'+tot.toFixed(1)+'</td>';
+  }
+  h+='</tr></tbody></table></div>';
+
+  // --- 3.a.3 层级数 ---
+  h+='<div class="cfg"><h4>🔀 3.a.3 层级数 — 四条通路流水切换</h4>';
+  h+='<div class="fml">Sx=10·clamp(1-Px/Pref,0,1), Pref=3, S=avg(四通路)</div>';
+  var paths=['GM→Vector','GM→Cube','Cube→Vector','Vector→Cube'];
+  h+='<table><thead><tr><th style="text-align:left">通路</th>';
+  for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr></thead><tbody>';
+  for(var pi=0;pi<paths.length;pi++){
+    h+='<tr><td style="text-align:left">'+paths[pi]+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var k='path_'+V[vi]+'_'+pi;
+      var val=memData[k]!==undefined?memData[k]:0;
+      var sc=Math.max(0,10*(1-val/3));
+      h+='<td><input class="inp" type="number" value="'+val+'" min="0" step="1" style="width:44px" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')"><br><span class="'+C(sc)+'">'+sc.toFixed(1)+'</span></td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+
+  // --- 3.a.4 容量 ---
+  h+='<div class="cfg"><h4>📦 3.a.4 容量 — 存活节点 × TileSize / Buffer容量</h4>';
+  h+='<div class="fml">ρ=Nalive·Tp/Cbuf, ρ≤1→10分; ρ>1→S=10/ρ</div>';
+  h+='<table><thead><tr><th rowspan="2">Buffer</th>';
+  for(var vi=0;vi<3;vi++) h+='<th colspan="4" style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr><tr>';
+  for(var vi=0;vi<3;vi++) h+='<th>60%</th><th>90%</th><th>99%</th><th>均</th>';
+  h+='</tr></thead><tbody>';
+  for(var bi=0;bi<bufs.length;bi++){
+    var buf=bufs[bi];
+    h+='<tr><td style="text-align:left">'+(buf.name||'Buffer '+bi)+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var v=V[vi],bSum=0,bN=0;
+      for(var ti=0;ti<BAND_TIERS.length;ti++){
+        var tier=BAND_TIERS[ti],k='cap_'+v+'_b'+bi+'_'+tier;
+        var cap=buf.cap_KiB?buf.cap_KiB*1024:65536;
+        var def=(tier==='60%'?0.8:tier==='90%'?1.2:2.0);
+        var val=memData[k]!==undefined?memData[k]:def;
+        var sc=val<=1?10:Math.min(10,10/val);
+        bSum+=sc;bN++;
+        var cls=sc>=8?'g8':sc>=5?'g5':'g2';
+        h+='<td class="'+cls+'" style="font-size:9px;padding:2px"><input class="inp" type="number" value="'+val+'" step="0.1" style="width:44px;font-size:8px" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')"><br>'+sc.toFixed(1)+'</td>';
+      }
+      var avg=bN>0?bSum/bN:0;
+      h+='<td class="'+C(avg)+'">'+avg.toFixed(1)+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</tbody></table></div>';
+
+  // --- 3.a.5 层级间通路 ---
+  h+='<div class="cfg"><h4>🔄 3.a.5 层级间通路 — 搬运代码占比</h4>';
+  h+='<div class="fml">γ=Ldma/Ltotal, γ≤0.05→10分, S=10·clamp(1-γ/0.3,0,1)</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">DMA代码占比γ</span>';
+  for(var vi=0;vi<3;vi++){
+    var k='mem_dma_'+V[vi],val=memData[k]!==undefined?memData[k]:0.01;
+    var sc=Math.max(0,10*(1-val/0.3));
+    h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.001" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:70px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+  }
+  h+='</div></div>';
+
+  // --- 3.b.1 dcache一致性 ---
+  h+='<div class="cfg"><h4>💾 3.b.1 dcache一致性 — 一致性代码占比</h4>';
+  h+='<div class="fml">γ=Lcoh/Ltotal, S=10·clamp(1-γ/0.2,0,1)</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">一致性代码占比γ</span>';
+  for(var vi=0;vi<3;vi++){
+    var k='mem_coh_'+V[vi],val=memData[k]!==undefined?memData[k]:0.005;
+    var sc=Math.max(0,10*(1-val/0.2));
+    h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.001" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:70px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+  }
+  h+='</div></div>';
+
+  // --- 3.b.2 hint行为控制 ---
+  h+='<div class="cfg"><h4>🎯 3.b.2 hint行为控制</h4>';
+  h+='<div class="fml">S=0.45·clamp(10-2Nhint,0,10)+0.55·Sgap</div>';
+  ['hint种类数Nhint','无hint性能差距比'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='mem_hint_d'+di+'_'+V[vi],def=di===0?0:0.05;
+      var val=memData[k]!==undefined?memData[k]:def;
+      var sc=di===0?Math.max(0,10-2*val):Math.max(0,10*(1-val/0.2));
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="1" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:60px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // --- 3.b.3 亲Die部署 ---
+  h+='<div class="cfg"><h4>🏗️ 3.b.3 亲Die部署</h4>';
+  h+='<div class="fml">S=10-5·fcluster-5·fdie, clamp[0,10]</div>';
+  ['感知Cluster(0/1)','感知Die(0/1)'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='mem_die_d'+di+'_'+V[vi],val=memData[k]!==undefined?memData[k]:0;
+      var sc=Math.max(0,10-5*val-5*(di===1?0:0));
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" min="0" max="1" step="1" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:50px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // --- 3.b.4 cache容量 ---
+  h+='<div class="cfg"><h4>📐 3.b.4 cache容量</h4>';
+  h+='<div class="fml">S=0.4·Sratio+0.6·Smiss, 二进制/栈比和ICache miss率</div>';
+  ['二进制/栈比','ICache miss率'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='mem_cache_d'+di+'_'+V[vi],def=di===0?0.5:0.02;
+      var val=memData[k]!==undefined?memData[k]:def;
+      var sc=di===0?Math.min(10,val*10):Math.max(0,10*(1-val/0.1));
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var md=loadMemData();md[\''+k+'\']=Number(this.value);saveMemData(md);go(\'cat\',\'内存模型\')" style="width:60px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  h+='<div style="margin-top:6px"><button class="btn" onclick="resetMemData();go(\'cat\',\'内存模型\')">↺ 重置默认值</button></div>';
+  return h;
+}
+
+function loadMemData(){try{return JSON.parse(localStorage.getItem('npu_mem_data')||'{}');}catch(e){return{};}}
+function saveMemData(d){localStorage.setItem('npu_mem_data',JSON.stringify(d));}
+function resetMemData(){localStorage.removeItem('npu_mem_data');}
+
+function renderComputeDetail(){
+  var cd=loadCatData('npu_comp');
+  var h='';
+
+  // 4.a.1 计算指令原子性
+  h+='<div class="cfg"><h4>🔗 4.a.1 计算指令原子性</h4>';
+  h+='<div class="fml">τ=Nviol/Napi, S=10·(1-τ), 违反原子性API比率越低越好</div>';
+  h+='<table><thead><tr><th style="text-align:left">参数</th>';
+  for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='<th>得分</th></tr></thead><tbody>';
+  ['违反原子性API数','API总数'].forEach(function(dim,di){
+    h+='<tr><td style="text-align:left">'+dim+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var k='comp_d'+di+'_'+V[vi],defVal=(di===0?0:100);
+      var val=cd[k]!==undefined?cd[k]:defVal;
+      h+='<td><input class="inp" type="number" value="'+val+'" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:60px"></td>';
+    }
+    h+='<td></td></tr>';
+  });
+  h+='</tbody></table></div>';
+
+  // 4.a.2 性能一致性
+  h+='<div class="cfg"><h4>📊 4.a.2 计算指令性能一致性</h4>';
+  h+='<div class="fml">η=Napi_dup/Nhw, S=0.65·10(1-η)+0.35·友商对标</div>';
+  ['重名函数数','硬件指令数'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:100px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='comp2_d'+di+'_'+V[vi];
+      var val=cd[k]!==undefined?cd[k]:(di===0?0:50);
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:60px">';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // 4.a.3 指令参数
+  h+='<div class="cfg"><h4>⚙️ 4.a.3 指令参数</h4>';
+  h+='<div class="fml">S=0.5Sπ+0.5Sε, π=可选参数/总参数, ε=使用枚举/定义枚举</div>';
+  ['可选参数比率','枚举暴露度'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:100px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='comp3_d'+di+'_'+V[vi],def=di===0?0.3:0.5;
+      var val=cd[k]!==undefined?cd[k]:def;
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:60px">';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // 4.b.2 低bit量化 (6维度)
+  h+='<div class="cfg"><h4>🔢 4.b.2 低bit量化 — 6维度度量</h4>';
+  h+='<div class="fml">S=0.25Smma+0.15Sulp+0.15Sconv+0.15Sscale+0.20Smfu+0.10Sieee (满足V2.0 ULP满分)</div>';
+  var dims42=[
+    {label:'MMA原生支持比(M/Nrequired)',def:'0.67',step:'0.01',unit:'比',fn:function(v){return Math.min(10,v*10);}},
+    {label:'指令精度ULP(≤2.0满分)',def:'2.0',step:'0.1',unit:'ULP',fn:function(v){return Math.max(0,10*(1-Math.max(v-2,0)/2));}},
+    {label:'量化转换次数(半衰)',def:'1',step:'1',unit:'次',fn:function(v){return 10/Math.pow(2,v);}},
+    {label:'RTN舍入(0/1)','d':'rtn',def:'1',step:'1',unit:'',fn:function(){return 0;}},
+    {label:'SR舍入(0/1)','d':'sr',def:'1',step:'1',unit:'',fn:function(){return 0;}},
+    {label:'Scale代码占比γ',def:'0.03',step:'0.001',unit:'比',fn:function(v){return Math.max(0,10*(1-v/0.15));}},
+    {label:'量化MFU达成率(vsFP16)',def:'0.85',step:'0.01',unit:'比',fn:function(v){return Math.min(10,v*10);}},
+    {label:'IEEE兼容比',def:'0.9',step:'0.01',unit:'比',fn:function(v){return v*10;}}
+  ];
+  for(var di=0;di<dims42.length;di++){
+    var dim=dims42[di];
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:160px">'+dim.label+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='comp42_d'+di+'_'+V[vi];
+      var val=cd[k]!==undefined?cd[k]:parseFloat(dim.def);
+      var sc=dim.fn(val);
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="'+dim.step+'" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:58px"><span class="note">'+dim.unit+'</span> <span class="'+C(sc)+'" style="font-size:10px">'+sc.toFixed(1)+'</span>';
+    }
+    h+='</div>';
+  }
+  h+='</div>';
+
+  // 4.a.4 完备性
+  h+='<div class="cfg"><h4>📋 4.a.4 计算指令完备性</h4>';
+  h+='<div class="fml">S=0.25Shw+0.25Ssimt+0.15Ssw+0.35Scover</div>';
+  ['硬件实现对齐率','SIMT实现对齐率','软件仿真对齐率','cast/atomic完备度'].forEach(function(dim,di){
+    h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">'+dim+'</span>';
+    for(var vi=0;vi<3;vi++){
+      var k='comp5_d'+di+'_'+V[vi],def=0.8;
+      var val=cd[k]!==undefined?cd[k]:def;
+      var sc=Math.min(10,val*10);
+      h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:60px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+
+  // 4.b.1 随路计算
+  h+='<div class="cfg"><h4>🔗 4.b.1 随路计算性能一致性</h4>';
+  h+='<div class="fml">ρi=Tfused/Tno_fused, Si=10·clamp(1-|ρi-1|/0.25,0,1)</div>';
+  h+='<div style="display:flex;gap:8px;align-items:center;margin:4px 0"><span style="font-size:10px;width:120px">随路/非随路比值ρ</span>';
+  for(var vi=0;vi<3;vi++){
+    var k='comp6_rho_'+V[vi],val=cd[k]!==undefined?cd[k]:1.0;
+    var sc=Math.max(0,10*(1-Math.abs(val-1)/0.25));
+    h+='<span style="color:'+VC[V[vi]]+';font-size:10px;width:60px">'+V[vi]+'</span><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_comp\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_comp\',d);go(\'cat\',\'计算模型\')" style="width:60px"><span class="'+C(sc)+'">S='+sc.toFixed(1)+'</span>';
+  }
+  h+='</div></div>';
+
+  h+='<button class="btn" onclick="resetCatData(\'npu_comp\');go(\'cat\',\'计算模型\')">↺ 重置</button>';
+  return h;
+}
+
+function renderControlDetail(){
+  var cd=loadCatData('npu_ctrl');
+  var h='<div class="cfg"><h4>🎛️ 控制模型 — 代码占比三版本对比</h4>';
+  var items=[
+    {label:'5.a.1 多pipeline',dim:'pipeline 切换次数',key:'ctrl_0',def:'0',unit:'次'},
+    {label:'5.b.1 核间同步',dim:'同步代码占比',key:'ctrl_1',def:'0.05',unit:'比'},
+    {label:'5.b.2 核内同步',dim:'核内同步代码占比',key:'ctrl_2',def:'0.01',unit:'比'},
+    {label:'5.c.1 生产者消费者',dim:'PC模型代码占比',key:'ctrl_3',def:'0.02',unit:'比'},
+    {label:'5.d.1 Scalar bound',dim:'Scalar代码占比',key:'ctrl_4',def:'0.01',unit:'比'},
+    {label:'5.e.1 头开销',dim:'初始化代码占比',key:'ctrl_5',def:'0.02',unit:'比'}
+  ];
+  h+='<table><thead><tr><th style="text-align:left">度量子项</th><th style="text-align:left">维度</th>';
+  for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr></thead><tbody>';
+  items.forEach(function(it){
+    h+='<tr><td style="text-align:left">'+it.label+'</td><td style="text-align:left;font-size:10px">'+it.dim+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var k=it.key+'_'+V[vi];
+      var val=cd[k]!==undefined?cd[k]:parseFloat(it.def);
+      h+='<td><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_ctrl\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_ctrl\',d);go(\'cat\',\'控制模型\')" style="width:66px"><span class="note">'+it.unit+'</span></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<button class="btn" onclick="resetCatData(\'npu_ctrl\');go(\'cat\',\'控制模型\')">↺ 重置</button>';
+  return h;
+}
+
+function renderMemaccDetail(){
+  var cd=loadCatData('npu_memacc');
+  var h='<div class="cfg"><h4>📡 访存模型 — 代码占比三版本对比</h4>';
+  var items=[
+    {label:'6.a.1 分型',dim:'搬运代码占比',key:'macc_0',def:'0.02'},
+    {label:'6.a.2 非结构化访存',dim:'地址计算代码占比',key:'macc_1',def:'0.01'},
+    {label:'6.b.1 申请与管理',dim:'内存管理代码占比',key:'macc_2',def:'0.01'}
+  ];
+  h+='<table><thead><tr><th style="text-align:left">度量子项</th><th style="text-align:left">维度</th>';
+  for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr></thead><tbody>';
+  items.forEach(function(it){
+    h+='<tr><td style="text-align:left">'+it.label+'</td><td style="text-align:left;font-size:10px">'+it.dim+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var k=it.key+'_'+V[vi];
+      var val=cd[k]!==undefined?cd[k]:parseFloat(it.def);
+      h+='<td><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_memacc\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_memacc\',d);go(\'cat\',\'访存模型\')" style="width:66px"></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<button class="btn" onclick="resetCatData(\'npu_memacc\');go(\'cat\',\'访存模型\')">↺ 重置</button>';
+  return h;
+}
+
+function renderDevDetail(){
+  var cd=loadCatData('npu_dev');
+  var h='<div class="cfg"><h4>⚡ 9.a.1 版本开发代价</h4>';
+  h+='<div class="fml">S=0.25SN+0.35Sγ+0.4Sρ, N版本数/γ修改比/ρ性能提升比</div>';
+  var items=[
+    {label:'开发迭代版本数N',key:'dev_0',def:'3',unit:'个'},
+    {label:'相邻版本代码修改比γ',key:'dev_1',def:'0.15',unit:'比'},
+    {label:'相邻版本性能提升比ρ',key:'dev_2',def:'0.85',unit:'比(≤1)'}
+  ];
+  h+='<table><thead><tr><th style="text-align:left">维度</th>';
+  for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'</th>';
+  h+='</tr></thead><tbody>';
+  items.forEach(function(it){
+    h+='<tr><td style="text-align:left;font-size:10px">'+it.label+'</td>';
+    for(var vi=0;vi<3;vi++){
+      var k=it.key+'_'+V[vi];
+      var val=cd[k]!==undefined?cd[k]:parseFloat(it.def);
+      h+='<td><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_dev\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_dev\',d);go(\'cat\',\'开发效率\')" style="width:66px"><span class="note">'+it.unit+'</span></td>';
+    }
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<button class="btn" onclick="resetCatData(\'npu_dev\');go(\'cat\',\'开发效率\')">↺ 重置</button>';
+  return h;
+}
+
+function loadCatData(key){try{return JSON.parse(localStorage.getItem(key)||'{}');}catch(e){return{};}}
+function saveCatData(key,d){localStorage.setItem(key,JSON.stringify(d));}
+function resetCatData(key){localStorage.removeItem(key);}
+
+// generic expanded detail for any category
+function renderCatExpand(catName){
+  var h='',cd=loadCatData('npu_'+catName);
+  var items=(D?D.sub_items:[]).filter(function(s){return s.cat===catName&&s.active;});
+  for(var sii=0;sii<items.length;sii++){
+    var si=items[sii];
+    // skip items that have their own special breakdown
+    if(catName==='系统规格'&&si.code==='1.a.1') continue;
+    if(catName==='内存模型'&&['3.a.1','3.a.2','3.a.3','3.a.4'].indexOf(si.code)>=0) continue;
+    if(catName==='计算模型'&&['4.a.1','4.a.2','4.a.3','4.b.2'].indexOf(si.code)>=0) continue;
+    if(catName==='控制模型') continue;
+    if(catName==='访存模型') continue;
+    if(catName==='开发效率') continue;
+    if(catName==='调试调优'||catName==='Agent友好') continue;
+
+    h+='<div class="cfg"><h4>'+si.code+' '+si.C+'</h4>';
+    h+='<div class="fml">'+si.formula+'</div>';
+    h+='<table><thead><tr><th style="text-align:left">维度</th>';
+    for(var vi=0;vi<3;vi++) h+='<th style="color:'+VC[V[vi]]+'">'+V[vi]+'<br><span style="font-size:9px">值 / 得分</span></th>';
+    h+='</tr></thead><tbody>';
+
+    // generate 1-3 input rows per sub-item based on formula complexity
+    var dims=[];
+    if(si.code==='3.a.5') dims=['搬运代码占比γ(Ldma/Ltotal)'];
+    else if(si.code==='3.b.1') dims=['一致性代码占比γ(Lcoh/Ltotal)'];
+    else if(si.code==='3.b.2') dims=['hint种类数Nhint','无hint性能差距比'];
+    else if(si.code==='3.b.3') dims=['Cluster感知(0/1)','Die感知(0/1)'];
+    else if(si.code==='3.b.4') dims=['二进制/栈比','ICache miss率'];
+    else if(si.code==='4.a.4') dims=['硬件实现对齐率','SIMT实现对齐率','软件仿真对齐率','cast/atomic完备度'];
+    else if(si.code==='4.b.1') dims=['随路/非随路性能比值ρ'];
+    else dims=['得分'];
+
+    for(var di=0;di<dims.length;di++){
+      h+='<tr><td style="text-align:left;font-size:10px">'+dims[di]+'</td>';
+      for(var vi=0;vi<3;vi++){
+        var k=catName+'_'+si.code+'_d'+di+'_'+V[vi];
+        var defVal=1;
+        var val=cd[k]!==undefined?cd[k]:defVal;
+        var sc=(val!==undefined)?Math.min(10,Math.max(0,val*10)):null;
+        h+='<td><input class="inp" type="number" value="'+val+'" step="0.01" onchange="var d=loadCatData(\'npu_'+catName+'\');d[\''+k+'\']=Number(this.value);saveCatData(\'npu_'+catName+'\',d);go(\'cat\',\''+catName+'\')" style="width:64px"><br><span class="'+C(sc)+'">'+(sc!==null?sc.toFixed(1):'—')+'</span></td>';
+      }
+      h+='</tr>';
+    }
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+function renderHwCfg(){
+  let h='<h2>芯片硬件规格配置</h2><div class="note">保存到浏览器本地。用于部分度量公式的参考基准值。</div>';
+  h+='<div class="cfg"><h4>系统规格</h4>';
+  h+=hwRow('总核心数 N','N',HW.N||0);
+  h+=hwRow('峰值带宽 Bpeak','Bpeak_GBs',HW.Bpeak_GBs||0,'GB/s');
+  h+=hwRow('Cacheline','cacheline_B',HW.cacheline_B||64,'B');
+  h+=hwRow('TileSize下限','tile_min',HW.tile_min||8192,'Byte');
+  h+=hwRow('TileSize上限','tile_max',HW.tile_max||65536,'Byte');
+  h+=hwRow('BurstLen下限','burst_min',HW.burst_min||32,'B');
+  h+=hwRow('BurstLen上限','burst_max',HW.burst_max||256,'B');
+  h+='</div>';
+  h+='<div class="cfg"><h4>内存模型 Buffer</h4>';
+  if(HW.buffers) HW.buffers.forEach((buf,i)=>{
+    h+=`<div style="margin:4px 0"><b style="color:var(--b);font-size:10px">${buf.name||'Buffer '+i}</b>`;
+    h+=hwRow('对齐粒度','buffers_'+i+'_align',buf.align_B||0,'Byte');
+    h+=hwRow('容量','buffers_'+i+'_cap',buf.cap_KiB||0,'KiB');
+    h+='</div>';
+  });
+  h+=hwRow('ICache','ICache_KiB',HW.ICache_KiB||0,'KiB');
+  h+=hwRow('DCache','DCache_KiB',HW.DCache_KiB||0,'KiB');
+  h+=hwRow('流水切换参考上限','pipe_ref',HW.pipe_ref||3,'次');
+  h+='</div>';
+  h+=`<button class="btn" onclick="saveHW()" style="margin-top:8px">保存芯片配置</button> <span class="toast" id="hwtoast">已保存</span>`;
+  return h;
+}
+function hwRow(label,key,val,unit){
+  return`<div class="r"><label>${label}</label><input type="number" value="${val}" onchange="setHwVal('${key}',this.value)" step="any"><span class="note">${unit||''}</span></div>`;
+}
+function setHwVal(key,val){
+  const keys=key.split('_');
+  if(keys[0]==='buffers'){
+    const idx=parseInt(keys[1]);
+    const field=keys[2]==='align'?'align_B':'cap_KiB';
+    if(HW.buffers&&HW.buffers[idx]) HW.buffers[idx][field]=Number(val);
+  }else{
+    HW[key]=Number(val);
+  }
+}
+
+function showToast(id){
+  const el=document.getElementById(id);
+  if(el){el.style.display='inline';setTimeout(()=>el.style.display='none',1500);}
+}
+
+function go(page,arg){
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('on'));
+  const catMap={'系统规格':'cat-system','内存模型':'cat-memory','计算模型':'cat-compute','控制模型':'cat-control','访存模型':'cat-memacc','调试调优':'cat-debug','Agent友好':'cat-agent','开发效率':'cat-dev'};
+  let sel=page==='cat'?('#'+(catMap[arg]||'cat-'+arg)):'#'+page;
+  const link=document.querySelector(`.nav a[href="${sel}"]`);
+  if(link)link.classList.add('on');
+  const m=document.getElementById('main');
+  switch(arg||page){
+    case'summary':m.innerHTML=renderSummary();break;
+    case'系统规格':case'内存模型':case'计算模型':case'控制模型':case'访存模型':case'Agent友好':case'开发效率':m.innerHTML=renderCat(arg);break;
+    case'调试调优':m.innerHTML=renderDebug();break;
+    case'weights':m.innerHTML=renderWeights();break;
+    case'hwcfg':m.innerHTML=renderHwCfg();break;
+  }
+  window.scrollTo(0,0);
+}
+
+// init
+try{EDITED=JSON.parse(localStorage.getItem('npu_edited')||'{}');}catch(e){EDITED={};}
+loadHW();
+
+fetch('measure_data.json').then(r=>{
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}).then(json=>{
+  D=json;
+  if(!D.weights) D.weights={categories:{},sub_items:{}};
+  try{
+    const sw=JSON.parse(localStorage.getItem('npu_weights_v2')||'{}');
+    if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
+  }catch(e){}
+  go('summary');
+}).catch(e=>{
+  var el=document.getElementById('main');
+  el.innerHTML='<div class="warn">JSON加载失败: '+e.message+'</div>';
+  el.innerHTML+='<br><button class="btn" id="pickFile">手动选择文件</button>';
+  el.innerHTML+='<input type="file" id="filePick" accept=".json" style="display:none">';
+  document.getElementById('pickFile').onclick=function(){document.getElementById('filePick').click();};
+  document.getElementById('filePick').onchange=function(){
+    var f=this.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(e2){try{D=JSON.parse(e2.target.result);if(!D.weights)D.weights={categories:{},sub_items:{}};go('summary');}catch(err2){el.innerHTML='JSON错误: '+err2.message;}};
+    r.readAsText(f);
+  };
+});
+</script>
+<span class="toast" id="wtoast" style="position:fixed;bottom:20px;right:20px;background:var(--card);padding:8px 16px;border-radius:6px;border:1px solid var(--g)">权重已保存</span>
+</body>
+</html>
