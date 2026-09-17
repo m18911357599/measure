@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "source": "https://github.com/PTO-ISA/SuperNpuBench",
+  "branch": "ops-20260908",
+  "root": "benchmark/one-level-arch/kernels",
+  "note": "26 Pattern 对应 SuperScalar kernel。优先 solution/，缺口用 single_thread/。ops-20260908 无独立 argmax/pad/scatter_add/resize/where/histogram/fft/dropout/sparse.mm/dynamic-batch kernel。",
+  "picks": {
+    "1": {
+      "pattern": "Elementwise · silu/gelu/add",
+      "dirs": ["single_thread/element_wise"]
+    },
+    "2": {
+      "pattern": "Broadcast · bias_add",
+      "dirs": ["single_thread/broadcast"]
+    },
+    "3": {
+      "pattern": "Reduction · sum/mean/max",
+      "dirs": ["single_thread/reduction"]
+    },
+    "4": {
+      "pattern": "Contraction · matmul/linear",
+      "dirs": ["solution/matmul_test", "single_thread/matmul"]
+    },
+    "5": {
+      "pattern": "ArgReduce · argmax/argmin",
+      "dirs": [],
+      "missing": "solution/single_thread @ops-20260908 无 argmax/argmin kernel"
+    },
+    "6": {
+      "pattern": "Layout Transform · View",
+      "dirs": ["solution/view_copy", "single_thread/transpose"]
+    },
+    "7": {
+      "pattern": "Padding · pad",
+      "dirs": [],
+      "missing": "无 pad/padding kernel"
+    },
+    "8": {
+      "pattern": "IndexGather · gather/embedding",
+      "dirs": ["solution/gather_v2", "single_thread/gather"]
+    },
+    "9": {
+      "pattern": "ScatterUpdate · scatter",
+      "dirs": ["single_thread/concat"]
+    },
+    "10": {
+      "pattern": "AtomicUpdate · scatter_add",
+      "dirs": [],
+      "missing": "无 scatter_add kernel（concat_scatter 归 #9）"
+    },
+    "11": {
+      "pattern": "Interpolation · grid_sample",
+      "dirs": [],
+      "missing": "无 resize/upsample/grid_sample kernel"
+    },
+    "12": {
+      "pattern": "MaskPredicate · where",
+      "dirs": [],
+      "missing": "无 where/select/mask predicate kernel"
+    },
+    "13": {
+      "pattern": "SortSelect · topk/sort",
+      "dirs": ["single_thread/sort"]
+    },
+    "14": {
+      "pattern": "Histogram · bincount",
+      "dirs": [],
+      "missing": "无独立 histogram/bincount kernel（topk 的 radix-bucket 归 #13）"
+    },
+    "15": {
+      "pattern": "SlidingWindow · conv2d/pool",
+      "dirs": ["single_thread/conv2d"]
+    },
+    "16": {
+      "pattern": "ControlFlow · cond/while",
+      "dirs": ["single_thread/control"]
+    },
+    "17": {
+      "pattern": "Recurrence · cumsum/lstm",
+      "dirs": ["single_thread/reduction"]
+    },
+    "18": {
+      "pattern": "MegaKernel · MegaMoe",
+      "dirs": ["solution/mega_moe", "solution/group_token_vec", "solution/group_token_old"]
+    },
+    "19": {
+      "pattern": "Spectral · fft/dct",
+      "dirs": [],
+      "missing": "无 fft/dct kernel"
+    },
+    "20": {
+      "pattern": "DynamicShape · 动态batch",
+      "dirs": [],
+      "missing": "无 nonzero/unique/dynamic-batch kernel"
+    },
+    "21": {
+      "pattern": "RandomSampling · dropout",
+      "dirs": [],
+      "missing": "无 dropout kernel"
+    },
+    "22": {
+      "pattern": "Norm 类",
+      "dirs": ["solution/normalization", "single_thread/norm"]
+    },
+    "23": {
+      "pattern": "Sparse · sparse.mm",
+      "dirs": [],
+      "missing": "无 sparse.mm/spmm kernel（quant_sparse_flash_mla 归 #26）"
+    },
+    "24": {
+      "pattern": "Quantization · int8/fp8",
+      "dirs": ["solution/quant"]
+    },
+    "25": {
+      "pattern": "CollectiveComm · all_reduce",
+      "dirs": ["solution/moe_dispatch", "solution/moe_combine"]
+    },
+    "26": {
+      "pattern": "FusedComposite · softmax/FA",
+      "dirs": ["solution/quant_sparse_flash_mla", "single_thread/fa"]
+    }
+  }
+}

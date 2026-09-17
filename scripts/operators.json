@@ -32,7 +32,7 @@
       "weight": 0.0627,
       "globs": {
         "AscendC": ["**/gelu*/op_kernel/**", "**/swi_glu*/op_kernel/**", "**/silu*/**", "**/add*/op_kernel/**", "**/foreach_add*/op_kernel/**"],
-        "SuperScalar": ["**/solution/**/element*", "**/single_thread/element_wise/**", "**/element_wise/**"],
+        "SuperScalar": ["**/solution/**/element*", "**/single_thread/element_wise/**", "**/element_wise/**", "**/gelu.hpp"],
         "SIMT": ["**/*gelu*.cu", "**/*silu*.cu", "**/*elementwise*.cu", "**/*element_wise*.cu"]
       }
     },
@@ -237,11 +237,11 @@
     {
       "id": 20,
       "pattern": "DynamicShape · 动态batch",
-      "op": "dynamic",
+      "op": "nonzero/unique",
       "weight": 0.0192,
       "globs": {
         "AscendC": ["**/nonzero*/**", "**/non_zero*/**", "**/unique*/**"],
-        "SuperScalar": ["**/*dynamic*", "**/*nonzero*"],
+        "SuperScalar": ["**/*nonzero*", "**/*non_zero*", "**/*unique_consecutive*", "**/unique/**"],
         "SIMT": ["**/*nonzero*.cu", "**/*unique*.cu"]
       }
     },
@@ -274,7 +274,7 @@
       "weight": 0.0193,
       "globs": {
         "AscendC": ["**/sparse*/**"],
-        "SuperScalar": ["**/*sparse*"],
+        "SuperScalar": ["**/*sparse_mm*", "**/*spmm*", "**/sparse_tensor*"],
         "SIMT": ["**/*sparse*.cu", "**/*spmm*.cu"]
       }
     },

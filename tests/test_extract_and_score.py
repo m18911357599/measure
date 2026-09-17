@@ -197,8 +197,12 @@ class LocalOpsTests(unittest.TestCase):
             self.assertEqual(ascend, ROOT.resolve())
         else:
             self.assertEqual(Path(roots["AscendC"]).name, "fixtures")
-        for arch in ("SuperScalar", "SIMT"):
-            self.assertEqual(Path(roots[arch]).name, "fixtures")
+        super_p = Path(roots["SuperScalar"])
+        if (ROOT / "SuperNpuBench").is_dir():
+            self.assertNotEqual(super_p.name, "fixtures")
+        else:
+            self.assertEqual(super_p.name, "fixtures")
+        self.assertEqual(Path(roots["SIMT"]).name, "fixtures")
         st = local_status(ROOT)
         self.assertTrue(st["exists"]["AscendC"])
 
@@ -211,12 +215,13 @@ class LocalOpsTests(unittest.TestCase):
             (td / "measure.md").write_text("# m\n", encoding="utf-8")
             (td / "ops-nn" / "gelu" / "op_kernel").mkdir(parents=True)
             (td / "ops-math").mkdir()
-            sol = td / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels" / "solution"
+            sol_parent = td / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels"
+            sol = sol_parent / "solution"
             sol.mkdir(parents=True)
             (td / "cuda").mkdir()
             roots = discover_roots(td, ROOT)
             self.assertEqual(Path(roots["AscendC"]).resolve(), td.resolve())
-            self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol.resolve())
+            self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol_parent.resolve())
             self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "cuda").resolve())
         finally:
             shutil.rmtree(td)
@@ -254,6 +259,22 @@ class LocalOpsTests(unittest.TestCase):
         for oid, needle in (("5", "arg_max"), ("11", "affine_grid"), ("21", "drop_out")):
             files = " ".join(data["arches"]["AscendC"]["operators"][oid]["metrics"].get("file_list") or [])
             self.assertIn(needle, files.replace("\\", "/"), f"#{oid} {by_id[oid]['pattern']}")
+
+    def test_super_extract_from_vendored_kernels(self):
+        kernels = (
+            ROOT / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels"
+        )
+        if not (kernels / "solution" / "matmul_test").is_dir():
+            self.skipTest("vendored SuperNpuBench kernels not present")
+        data = extract_all({"SuperScalar": str(kernels)}, ROOT / "scripts" / "operators.json")
+        ops = data["arches"]["SuperScalar"]["operators"]
+        present = [oid for oid, o in ops.items() if not o["metrics"].get("missing")]
+        for oid in ("1", "4", "6", "8", "13", "18", "22", "25", "26"):
+            self.assertIn(oid, present, f"SuperScalar #{oid} should have source")
+        self.assertTrue(ops["23"]["metrics"].get("missing"), "sparse.mm must not steal QSMLA")
+        self.assertTrue(ops["20"]["metrics"].get("missing"), "dynamic-batch must not steal mx quant")
+        files4 = " ".join(ops["4"]["metrics"].get("file_list") or [])
+        self.assertIn("matmul", files4.replace("\\", "/"))
 
 
 if __name__ == "__main__":
