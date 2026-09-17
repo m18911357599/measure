@@ -197,7 +197,17 @@ function overall(){
 function renderSummary(){
   const ov=overall();
   let h='<h2>汇总</h2>';
-  if(COMPUTED) h+='<div class="warn">当前分类/子项得分已叠加「度量」流水线计算结果（源码提取 + 硬件规格 + Benchmark 性能）。手动改分优先。</div>';
+  const lm=D&&D.meta&&D.meta.local_measure;
+  const hasRepoComputed=D&&D.scores&&Object.values(D.scores).some(by=>by&&Object.values(by).some(s=>s&&s.source==='computed'));
+  if(COMPUTED||hasRepoComputed) h+='<div class="warn">当前分类/子项得分已叠加「度量」流水线计算结果（源码提取 + 硬件规格 + Benchmark 性能）。手动改分优先。</div>';
+  if(lm&&lm.coverage){
+    const parts=[];
+    for(const k of Object.keys(lm.coverage)){
+      const c=lm.coverage[k];
+      parts.push(k+' '+(c.found||0)+'/'+(c.total||0));
+    }
+    h+='<div class="note">仓库已合入本地度量数据（'+parts.join('，')+'）。完整提取见 <code>measure_extract.json</code>，得分见 <code>measure_scores.json</code> / <code>measure_data.json</code>。硬件规格与 Benchmark 性能项仍待填写，未覆盖的仍保留原占位分。</div>';
+  }
   h+='<div class="scards">';
   for(const v of V) h+=`<div class="sc"><div class="v">${v}</div><div class="s" style="color:${VC[v]}">${S(ov[v])}</div><div class="u">综合易用性</div></div>`;
   h+='</div>';
@@ -1113,8 +1123,8 @@ function renderMeasure(){
   h+='<div class="note">对照 measure.md 各 x.y.z 子项：需要算子源码的项在此提取；需要性能数据的项在「Benchmark性能」填写；直接来自规格书的项在「硬件规格」填写。提取后点击「应用到得分」。</div>';
   h+='<div class="cfg"><h4>Benchmark 算子来源</h4>';
   h+='<table><thead><tr><th>架构</th><th style="text-align:left">参考仓库 / 目录</th></tr></thead><tbody>';
-  h+='<tr><td style="color:#58a6ff">AscendC</td><td style="text-align:left">gitcode.com/cann/ops-nn、ops-math、ops-transformer（优先 op_kernel/）</td></tr>';
-  h+='<tr><td style="color:#bc8cff">SuperScalar</td><td style="text-align:left">github.com/PTO-ISA/SuperNpuBench @ ops-20260908 /benchmark/one-level-arch/kernels/solution</td></tr>';
+  h+='<tr><td style="color:#58a6ff">AscendC</td><td style="text-align:left">本仓库 <code>ops-nn/</code> <code>ops-math/</code> <code>ops-transformer/</code>（CANN 9.0.0，26 Pattern 对应 kernel；刷新运行 <code>download_cann_ops.cmd</code>）</td></tr>';
+  h+='<tr><td style="color:#bc8cff">SuperScalar</td><td style="text-align:left">本仓库 <code>SuperNpuBench/benchmark/one-level-arch/kernels/</code>（<code>solution/</code> + <code>single_thread/</code> 补齐，分支 ops-20260908）</td></tr>';
   h+='<tr><td style="color:#3fb950">SIMT</td><td style="text-align:left">CUDA kernels（cutlass / cub / 自定义 .cu）</td></tr>';
   h+='</tbody></table></div>';
 
@@ -1127,7 +1137,7 @@ function renderMeasure(){
   h+=`<button class="btn btn-m" onclick="runBrowserExtract()">运行源码提取</button></div>`;
 
   h+='<div class="cfg"><h4>2. 本地缓存提取（D:/cursor/measure）</h4>';
-  h+='<div class="note">文档与脚本在 Cursor 本地缓存 <code>D:/cursor/measure</code>。本机运行 <code>local_measure.cmd</code> 或 <code>python scripts/measure.py local</code> 后，点「度量（本地缓存）」即可，无需再填路径。</div>';
+  h+='<div class="note">文档、脚本、26 个 CANN 算子与 SuperNpuBench kernel 在 Cursor 本地缓存 <code>D:/cursor/measure</code>（git pull 即可）。本机运行 <code>local_measure.cmd</code> 或 <code>python scripts/measure.py local</code> 后，点「度量（本地缓存）」即可。若需从 gitcode.com/cann 与 GitHub SuperNpuBench 重新拉取，运行 <code>download_cann_ops.cmd</code>。</div>';
   h+=`<div class="note">当前缓存：<span id="local_cache_label">${(LOCAL_INFO&&LOCAL_INFO.cache_root)||'D:/cursor/measure'}</span></div>`;
   h+='<div class="r"><label>AscendC 路径</label><input class="wide" id="path_AscendC" placeholder="D:/cursor/measure 或 ops-nn 根目录"></div>';
   h+='<div class="r"><label>SuperScalar 路径</label><input class="wide" id="path_SuperScalar" placeholder="D:/cursor/measure/.../kernels/solution"></div>';
@@ -1163,7 +1173,8 @@ function renderExtractTable(){
     for(const v of V){
       const m=((((EXTRACT.arches[v]||{}).operators||{})[String(op.id)]||{}).metrics)||{};
       const miss=m.missing||!m.L_total;
-      h+=`<td>${miss?'—':m.L_total}</td><td>${miss?'—':m.L_dma}</td><td>${miss?'0':(m.files||(m.file_list||[]).length)}</td>`;
+      const nfile=m.files||m.n_files||(m.file_list||[]).length||0;
+      h+=`<td>${miss?'—':m.L_total}</td><td>${miss?'—':m.L_dma}</td><td>${miss?'0':nfile}</td>`;
     }
     h+='</tr>';
   }
@@ -1329,10 +1340,20 @@ fetch('measure_data.json').then(r=>{
     if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
   }catch(e){}
   loadHW();
-  fetch('/api/local').then(r=>r.ok?r.json():null).then(info=>{
-    if(info) LOCAL_INFO=info;
-    routeFromHash();
-  }).catch(()=>routeFromHash());
+  const loadRepo=Promise.all([
+    EXTRACT?Promise.resolve(null):fetch('measure_extract.json').then(r=>r.ok?r.json():null).catch(()=>null),
+    COMPUTED?Promise.resolve(null):fetch('measure_scores.json').then(r=>r.ok?r.json():null).catch(()=>null)
+  ]).then(([ex,sc])=>{
+    if(ex&&ex.arches) EXTRACT=ex;
+    else if(!EXTRACT&&D.extract) EXTRACT=D.extract;
+    if(sc&&sc.scores) COMPUTED=sc;
+  });
+  loadRepo.then(()=>{
+    fetch('/api/local').then(r=>r.ok?r.json():null).then(info=>{
+      if(info) LOCAL_INFO=info;
+      routeFromHash();
+    }).catch(()=>routeFromHash());
+  });
 }).catch(e=>{
   var el=document.getElementById('main');
   el.innerHTML='<div class="warn">JSON加载失败: '+e.message+'</div>';

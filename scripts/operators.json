@@ -32,7 +32,7 @@
       "weight": 0.0627,
       "globs": {
         "AscendC": ["**/gelu*/op_kernel/**", "**/swi_glu*/op_kernel/**", "**/silu*/**", "**/add*/op_kernel/**", "**/foreach_add*/op_kernel/**"],
-        "SuperScalar": ["**/solution/**/element*", "**/single_thread/element_wise/**", "**/element_wise/**"],
+        "SuperScalar": ["**/solution/**/element*", "**/single_thread/element_wise/**", "**/element_wise/**", "**/gelu.hpp"],
         "SIMT": ["**/*gelu*.cu", "**/*silu*.cu", "**/*elementwise*.cu", "**/*element_wise*.cu"]
       }
     },
@@ -75,7 +75,7 @@
       "op": "argmax",
       "weight": 0.0201,
       "globs": {
-        "AscendC": ["**/argmax*/**", "**/argmin*/**"],
+        "AscendC": ["**/argmax*/**", "**/argmin*/**", "**/arg_max*/**", "**/arg_min*/**"],
         "SuperScalar": ["**/*argmax*", "**/*argmin*"],
         "SIMT": ["**/*argmax*.cu", "**/*argmin*.cu"]
       }
@@ -141,7 +141,7 @@
       "op": "ResizeBilinearV2",
       "weight": 0.0192,
       "globs": {
-        "AscendC": ["**/resize*/**", "**/upsample*/**", "**/grid_sample*/**"],
+        "AscendC": ["**/resize*/**", "**/upsample*/**", "**/grid_sample*/**", "**/affine_grid*/**"],
         "SuperScalar": ["**/*resize*", "**/*interp*"],
         "SIMT": ["**/*resize*.cu", "**/*upsample*.cu", "**/*grid_sample*.cu"]
       }
@@ -229,7 +229,7 @@
       "op": "fft",
       "weight": 0.0192,
       "globs": {
-        "AscendC": ["**/fft*/**", "**/dct*/**"],
+        "AscendC": ["**/fft*/**", "**/rfft*/**", "**/dct*/**"],
         "SuperScalar": ["**/*fft*", "**/*dct*"],
         "SIMT": ["**/*fft*.cu", "**/*dct*.cu"]
       }
@@ -237,11 +237,11 @@
     {
       "id": 20,
       "pattern": "DynamicShape · 动态batch",
-      "op": "dynamic",
+      "op": "nonzero/unique",
       "weight": 0.0192,
       "globs": {
-        "AscendC": ["**/nonzero*/**", "**/unique*/**"],
-        "SuperScalar": ["**/*dynamic*", "**/*nonzero*"],
+        "AscendC": ["**/nonzero*/**", "**/non_zero*/**", "**/unique*/**"],
+        "SuperScalar": ["**/*nonzero*", "**/*non_zero*", "**/*unique_consecutive*", "**/unique/**"],
         "SIMT": ["**/*nonzero*.cu", "**/*unique*.cu"]
       }
     },
@@ -251,7 +251,7 @@
       "op": "dropout",
       "weight": 0.0193,
       "globs": {
-        "AscendC": ["**/dropout*/**", "**/multinomial*/**"],
+        "AscendC": ["**/dropout*/**", "**/drop_out*/**", "**/multinomial*/**"],
         "SuperScalar": ["**/*dropout*"],
         "SIMT": ["**/*dropout*.cu"]
       }
@@ -274,7 +274,7 @@
       "weight": 0.0193,
       "globs": {
         "AscendC": ["**/sparse*/**"],
-        "SuperScalar": ["**/*sparse*"],
+        "SuperScalar": ["**/*sparse_mm*", "**/*spmm*", "**/sparse_tensor*"],
         "SIMT": ["**/*sparse*.cu", "**/*spmm*.cu"]
       }
     },

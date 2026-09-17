@@ -1,0 +1,357 @@
+{
+  "kind": "computed_scores",
+  "scores": {
+    "1.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "3.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "3.a.2": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "3.a.3": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "3.a.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "3.a.5": {
+      "AscendC": 7.12,
+      "SuperScalar": 8.01,
+      "SIMT": null
+    },
+    "3.b.1": {
+      "AscendC": 9.86,
+      "SuperScalar": 9.95,
+      "SIMT": null
+    },
+    "3.b.2": {
+      "AscendC": 4.0,
+      "SuperScalar": 4.0,
+      "SIMT": null
+    },
+    "3.b.3": {
+      "AscendC": 10.0,
+      "SuperScalar": 5.9,
+      "SIMT": null
+    },
+    "3.b.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.a.2": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.a.3": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.a.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.b.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "4.b.2": {
+      "AscendC": 7.7,
+      "SuperScalar": 7.89,
+      "SIMT": null
+    },
+    "5.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "5.b.1": {
+      "AscendC": 9.85,
+      "SuperScalar": 9.84,
+      "SIMT": null
+    },
+    "5.b.2": {
+      "AscendC": 8.85,
+      "SuperScalar": 9.89,
+      "SIMT": null
+    },
+    "5.c.1": {
+      "AscendC": 9.13,
+      "SuperScalar": 9.97,
+      "SIMT": null
+    },
+    "5.d.1": {
+      "AscendC": 9.41,
+      "SuperScalar": 7.56,
+      "SIMT": null
+    },
+    "5.e.1": {
+      "AscendC": 0.05,
+      "SuperScalar": 1.5,
+      "SIMT": null
+    },
+    "6.a.1": {
+      "AscendC": 7.55,
+      "SuperScalar": 8.32,
+      "SIMT": null
+    },
+    "6.a.2": {
+      "AscendC": 6.81,
+      "SuperScalar": 8.52,
+      "SIMT": null
+    },
+    "6.b.1": {
+      "AscendC": 8.95,
+      "SuperScalar": 6.88,
+      "SIMT": null
+    },
+    "7.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.a.2": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.a.3": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.a.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.b.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.b.2": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.b.3": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.b.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.c.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.2": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.3": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.4": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.5": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.6": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "7.d.7": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "8.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    },
+    "9.a.1": {
+      "AscendC": null,
+      "SuperScalar": null,
+      "SIMT": null
+    }
+  },
+  "by_arch": {
+    "AscendC": {
+      "1.a.1": null,
+      "3.a.1": null,
+      "3.a.2": null,
+      "3.a.3": null,
+      "3.a.4": null,
+      "3.a.5": 7.119050017754494,
+      "3.b.1": 9.863947260093735,
+      "3.b.2": 4.0,
+      "3.b.3": 10.0,
+      "3.b.4": null,
+      "4.a.1": null,
+      "4.a.2": null,
+      "4.a.3": null,
+      "4.a.4": null,
+      "4.b.1": null,
+      "4.b.2": 7.702523420701894,
+      "5.a.1": null,
+      "5.b.1": 9.854597829498665,
+      "5.b.2": 8.845151379724724,
+      "5.c.1": 9.12843814184869,
+      "5.d.1": 9.409303462325216,
+      "5.e.1": 0.05460026466371534,
+      "6.a.1": 7.554798299832149,
+      "6.a.2": 6.805152527719242,
+      "6.b.1": 8.95386501958938,
+      "7.a.1": null,
+      "7.a.2": null,
+      "7.a.3": null,
+      "7.a.4": null,
+      "7.b.1": null,
+      "7.b.2": null,
+      "7.b.3": null,
+      "7.b.4": null,
+      "7.c.1": null,
+      "7.d.1": null,
+      "7.d.2": null,
+      "7.d.3": null,
+      "7.d.4": null,
+      "7.d.5": null,
+      "7.d.6": null,
+      "7.d.7": null,
+      "8.a.1": null,
+      "9.a.1": null
+    },
+    "SuperScalar": {
+      "1.a.1": null,
+      "3.a.1": null,
+      "3.a.2": null,
+      "3.a.3": null,
+      "3.a.4": null,
+      "3.a.5": 8.006783805643582,
+      "3.b.1": 9.947699907506088,
+      "3.b.2": 4.0,
+      "3.b.3": 5.895987534086482,
+      "3.b.4": null,
+      "4.a.1": null,
+      "4.a.2": null,
+      "4.a.3": null,
+      "4.a.4": null,
+      "4.b.1": null,
+      "4.b.2": 7.889186020819525,
+      "5.a.1": null,
+      "5.b.1": 9.835008573901543,
+      "5.b.2": 9.885530174931802,
+      "5.c.1": 9.96624160496877,
+      "5.d.1": 7.555745711118612,
+      "5.e.1": 1.5041450118778499,
+      "6.a.1": 8.319555795289638,
+      "6.a.2": 8.517739843731347,
+      "6.b.1": 6.880029154129219,
+      "7.a.1": null,
+      "7.a.2": null,
+      "7.a.3": null,
+      "7.a.4": null,
+      "7.b.1": null,
+      "7.b.2": null,
+      "7.b.3": null,
+      "7.b.4": null,
+      "7.c.1": null,
+      "7.d.1": null,
+      "7.d.2": null,
+      "7.d.3": null,
+      "7.d.4": null,
+      "7.d.5": null,
+      "7.d.6": null,
+      "7.d.7": null,
+      "8.a.1": null,
+      "9.a.1": null
+    },
+    "SIMT": {
+      "1.a.1": null,
+      "3.a.1": null,
+      "3.a.2": null,
+      "3.a.3": null,
+      "3.a.4": null,
+      "3.a.5": null,
+      "3.b.1": null,
+      "3.b.2": null,
+      "3.b.3": null,
+      "3.b.4": null,
+      "4.a.1": null,
+      "4.a.2": null,
+      "4.a.3": null,
+      "4.a.4": null,
+      "4.b.1": null,
+      "4.b.2": null,
+      "5.a.1": null,
+      "5.b.1": null,
+      "5.b.2": null,
+      "5.c.1": null,
+      "5.d.1": null,
+      "5.e.1": null,
+      "6.a.1": null,
+      "6.a.2": null,
+      "6.b.1": null,
+      "7.a.1": null,
+      "7.a.2": null,
+      "7.a.3": null,
+      "7.a.4": null,
+      "7.b.1": null,
+      "7.b.2": null,
+      "7.b.3": null,
+      "7.b.4": null,
+      "7.c.1": null,
+      "7.d.1": null,
+      "7.d.2": null,
+      "7.d.3": null,
+      "7.d.4": null,
+      "7.d.5": null,
+      "7.d.6": null,
+      "7.d.7": null,
+      "8.a.1": null,
+      "9.a.1": null
+    }
+  }
+}

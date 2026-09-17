@@ -192,7 +192,17 @@ class LocalOpsTests(unittest.TestCase):
         for arch in ("AscendC", "SuperScalar", "SIMT"):
             p = Path(roots[arch])
             self.assertTrue(p.is_dir(), arch)
-            self.assertEqual(p.name, "fixtures")
+        ascend = Path(roots["AscendC"]).resolve()
+        if (ROOT / "ops-nn").is_dir() and (ROOT / "ops-math").is_dir():
+            self.assertEqual(ascend, ROOT.resolve())
+        else:
+            self.assertEqual(Path(roots["AscendC"]).name, "fixtures")
+        super_p = Path(roots["SuperScalar"])
+        if (ROOT / "SuperNpuBench").is_dir():
+            self.assertNotEqual(super_p.name, "fixtures")
+        else:
+            self.assertEqual(super_p.name, "fixtures")
+        self.assertEqual(Path(roots["SIMT"]).name, "fixtures")
         st = local_status(ROOT)
         self.assertTrue(st["exists"]["AscendC"])
 
@@ -205,12 +215,13 @@ class LocalOpsTests(unittest.TestCase):
             (td / "measure.md").write_text("# m\n", encoding="utf-8")
             (td / "ops-nn" / "gelu" / "op_kernel").mkdir(parents=True)
             (td / "ops-math").mkdir()
-            sol = td / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels" / "solution"
+            sol_parent = td / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels"
+            sol = sol_parent / "solution"
             sol.mkdir(parents=True)
             (td / "cuda").mkdir()
             roots = discover_roots(td, ROOT)
             self.assertEqual(Path(roots["AscendC"]).resolve(), td.resolve())
-            self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol.resolve())
+            self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol_parent.resolve())
             self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "cuda").resolve())
         finally:
             shutil.rmtree(td)
@@ -231,6 +242,60 @@ class LocalOpsTests(unittest.TestCase):
         finally:
             if out.exists():
                 out.unlink()
+
+    def test_cann_globs_cover_underscore_names(self):
+        if not (ROOT / "ops-math" / "math" / "arg_max_v2").is_dir():
+            self.skipTest("vendored CANN kernels not present")
+        from extract_source import load_operators
+        operators = load_operators()
+        data = extract_all({"AscendC": str(ROOT)}, ROOT / "scripts" / "operators.json")
+        missing = [
+            o["id"]
+            for o in data["arches"]["AscendC"]["operators"].values()
+            if o["metrics"].get("missing")
+        ]
+        self.assertEqual(missing, [], f"AscendC missing patterns {missing}")
+        by_id = {str(o["id"]): o for o in operators["operators"]}
+        for oid, needle in (("5", "arg_max"), ("11", "affine_grid"), ("21", "drop_out")):
+            files = " ".join(data["arches"]["AscendC"]["operators"][oid]["metrics"].get("file_list") or [])
+            self.assertIn(needle, files.replace("\\", "/"), f"#{oid} {by_id[oid]['pattern']}")
+
+    def test_merge_keeps_placeholders_and_records_extract(self):
+        from score import merge_into_measure_data, score_all
+        fx = ROOT / "tests" / "fixtures"
+        extract = extract_all({"AscendC": str(fx)})
+        computed = score_all(extract, {}, {}, None)
+        measure = {
+            "meta": {},
+            "scores": {
+                "1.a.1": {"AscendC": {"score": 5, "source": "profiling"}},
+                "7.a.1": {"AscendC": {"score": 5, "source": "hardware"}},
+            },
+        }
+        merged = merge_into_measure_data(measure, computed, extract)
+        self.assertEqual(merged["scores"]["1.a.1"]["AscendC"]["score"], 5)
+        self.assertEqual(merged["scores"]["1.a.1"]["AscendC"]["source"], "profiling")
+        self.assertEqual(merged["scores"]["7.a.1"]["AscendC"]["source"], "hardware")
+        self.assertEqual(merged["scores"]["3.a.5"]["AscendC"]["source"], "computed")
+        self.assertIsNotNone(merged["scores"]["3.a.5"]["AscendC"]["score"])
+        self.assertIn("extract", merged)
+        self.assertGreaterEqual(merged["meta"]["local_measure"]["coverage"]["AscendC"]["found"], 1)
+
+    def test_super_extract_from_vendored_kernels(self):
+        kernels = (
+            ROOT / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels"
+        )
+        if not (kernels / "solution" / "matmul_test").is_dir():
+            self.skipTest("vendored SuperNpuBench kernels not present")
+        data = extract_all({"SuperScalar": str(kernels)}, ROOT / "scripts" / "operators.json")
+        ops = data["arches"]["SuperScalar"]["operators"]
+        present = [oid for oid, o in ops.items() if not o["metrics"].get("missing")]
+        for oid in ("1", "4", "6", "8", "13", "18", "22", "25", "26"):
+            self.assertIn(oid, present, f"SuperScalar #{oid} should have source")
+        self.assertTrue(ops["23"]["metrics"].get("missing"), "sparse.mm must not steal QSMLA")
+        self.assertTrue(ops["20"]["metrics"].get("missing"), "dynamic-batch must not steal mx quant")
+        files4 = " ".join(ops["4"]["metrics"].get("file_list") or [])
+        self.assertIn("matmul", files4.replace("\\", "/"))
 
 
 if __name__ == "__main__":

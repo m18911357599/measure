@@ -1,0 +1,203 @@
+{
+  "branch": "ops-20260908",
+  "source": "https://github.com/PTO-ISA/SuperNpuBench",
+  "root": "SuperNpuBench/benchmark/one-level-arch/kernels",
+  "operators": {
+    "1": {
+      "pattern": "Elementwise · silu/gelu/add",
+      "files": 3,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/element_wise"
+      ],
+      "missing_note": ""
+    },
+    "2": {
+      "pattern": "Broadcast · bias_add",
+      "files": 5,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/broadcast"
+      ],
+      "missing_note": ""
+    },
+    "3": {
+      "pattern": "Reduction · sum/mean/max",
+      "files": 15,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/reduction"
+      ],
+      "missing_note": ""
+    },
+    "4": {
+      "pattern": "Contraction · matmul/linear",
+      "files": 6,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/matmul_test",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/matmul"
+      ],
+      "missing_note": ""
+    },
+    "5": {
+      "pattern": "ArgReduce · argmax/argmin",
+      "files": 0,
+      "present": [],
+      "missing_note": "solution/single_thread @ops-20260908 无 argmax/argmin kernel"
+    },
+    "6": {
+      "pattern": "Layout Transform · View",
+      "files": 5,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/view_copy",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/transpose"
+      ],
+      "missing_note": ""
+    },
+    "7": {
+      "pattern": "Padding · pad",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 pad/padding kernel"
+    },
+    "8": {
+      "pattern": "IndexGather · gather/embedding",
+      "files": 3,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/gather_v2",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/gather"
+      ],
+      "missing_note": ""
+    },
+    "9": {
+      "pattern": "ScatterUpdate · scatter",
+      "files": 3,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/concat"
+      ],
+      "missing_note": ""
+    },
+    "10": {
+      "pattern": "AtomicUpdate · scatter_add",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 scatter_add kernel（concat_scatter 归 #9）"
+    },
+    "11": {
+      "pattern": "Interpolation · grid_sample",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 resize/upsample/grid_sample kernel"
+    },
+    "12": {
+      "pattern": "MaskPredicate · where",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 where/select/mask predicate kernel"
+    },
+    "13": {
+      "pattern": "SortSelect · topk/sort",
+      "files": 2,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/sort"
+      ],
+      "missing_note": ""
+    },
+    "14": {
+      "pattern": "Histogram · bincount",
+      "files": 0,
+      "present": [],
+      "missing_note": "无独立 histogram/bincount kernel（topk 的 radix-bucket 归 #13）"
+    },
+    "15": {
+      "pattern": "SlidingWindow · conv2d/pool",
+      "files": 1,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/conv2d"
+      ],
+      "missing_note": ""
+    },
+    "16": {
+      "pattern": "ControlFlow · cond/while",
+      "files": 2,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/control"
+      ],
+      "missing_note": ""
+    },
+    "17": {
+      "pattern": "Recurrence · cumsum/lstm",
+      "files": 15,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/reduction"
+      ],
+      "missing_note": ""
+    },
+    "18": {
+      "pattern": "MegaKernel · MegaMoe",
+      "files": 7,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/mega_moe",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/group_token_vec",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/group_token_old"
+      ],
+      "missing_note": ""
+    },
+    "19": {
+      "pattern": "Spectral · fft/dct",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 fft/dct kernel"
+    },
+    "20": {
+      "pattern": "DynamicShape · 动态batch",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 nonzero/unique/dynamic-batch kernel"
+    },
+    "21": {
+      "pattern": "RandomSampling · dropout",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 dropout kernel"
+    },
+    "22": {
+      "pattern": "Norm 类",
+      "files": 6,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/normalization",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/norm"
+      ],
+      "missing_note": ""
+    },
+    "23": {
+      "pattern": "Sparse · sparse.mm",
+      "files": 0,
+      "present": [],
+      "missing_note": "无 sparse.mm/spmm kernel（quant_sparse_flash_mla 归 #26）"
+    },
+    "24": {
+      "pattern": "Quantization · int8/fp8",
+      "files": 9,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/quant"
+      ],
+      "missing_note": ""
+    },
+    "25": {
+      "pattern": "CollectiveComm · all_reduce",
+      "files": 4,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/moe_dispatch",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/moe_combine"
+      ],
+      "missing_note": ""
+    },
+    "26": {
+      "pattern": "FusedComposite · softmax/FA",
+      "files": 12,
+      "present": [
+        "SuperNpuBench/benchmark/one-level-arch/kernels/solution/quant_sparse_flash_mla",
+        "SuperNpuBench/benchmark/one-level-arch/kernels/single_thread/fa"
+      ],
+      "missing_note": ""
+    }
+  }
+}

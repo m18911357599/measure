@@ -18,6 +18,8 @@ DEFAULT_CACHE = "D:/cursor/measure"
 
 ASCEND_HINTS = ("ops-nn", "ops-math", "ops-transformer")
 SUPER_HINTS = (
+    "benchmark/one-level-arch/kernels",
+    "one-level-arch/kernels",
     "benchmark/one-level-arch/kernels/solution",
     "one-level-arch/kernels/solution",
     "kernels/solution",

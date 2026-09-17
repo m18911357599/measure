@@ -20,6 +20,8 @@ SKIP_DIR_NAMES = {
     "build", ".git", ".svn", "third_party", "3rdparty", "node_modules",
     "__pycache__", "docs", "examples", "test", "tests", "ut", "st",
     "cmake", "figures",
+    # Keep ISA trees from leaking into each other's extract when the root is the repo.
+    "SuperNpuBench", "supernpubench", "cuda", "cutlass", "cub",
 }
 
 SOURCE_EXTS = {
@@ -234,6 +236,17 @@ def iter_source_files(root: Path, extensions: Sequence[str]) -> Iterable[Path]:
                 yield p
 
 
+def _rel_parts(path: Path, root: Path) -> tuple:
+    try:
+        return path.resolve().relative_to(root.resolve()).parts
+    except (ValueError, OSError):
+        return path.parts
+
+
+def _under_skipped(path: Path, root: Path) -> bool:
+    return any(_should_skip_dir(p) for p in _rel_parts(path, root))
+
+
 def match_globs(root: Path, globs: Sequence[str]) -> List[Path]:
     found: List[Path] = []
     seen = set()
@@ -243,25 +256,33 @@ def match_globs(root: Path, globs: Sequence[str]) -> List[Path]:
         except ValueError:
             continue
         for p in matches:
+            if _under_skipped(p, root):
+                continue
             if p.is_file() and p not in seen:
                 seen.add(p)
                 found.append(p)
             elif p.is_dir():
                 for f in iter_source_files(p, SOURCE_EXTS):
-                    if f not in seen:
+                    if f not in seen and not _under_skipped(f, root):
                         seen.add(f)
                         found.append(f)
     return found
 
 
+def _fold_token(s: str) -> str:
+    """Normalize path/token so arg_max matches argmax, drop_out matches dropout."""
+    return s.lower().replace("_", "").replace("-", "")
+
+
 def match_by_tokens(root: Path, tokens: Sequence[str], extensions: Sequence[str]) -> List[Path]:
     """Fallback: any source file whose path contains one of the tokens."""
-    toks = [t.lower() for t in tokens if t and t.lower() not in ("na", "类")]
+    toks = [_fold_token(t) for t in tokens if t and t.lower() not in ("na", "类")]
+    toks = [t for t in toks if t]
     if not toks:
         return []
     hit = []
     for f in iter_source_files(root, extensions):
-        s = str(f).lower()
+        s = _fold_token(str(f))
         if any(t in s for t in toks):
             hit.append(f)
     return hit
@@ -432,7 +453,11 @@ def extract_arch(root: Path, arch: str, operators: dict) -> dict:
             for part in re.split(r"[,/·\s]+", str(op.get("op") or "")):
                 if part:
                     tokens.append(part)
-            for part in re.split(r"[,/·\s]+", str(op.get("pattern") or "")):
+            # Pattern title before "·" is a generic category (Sparse, Norm, …)
+            # and must not be used as a path token.
+            pat = str(op.get("pattern") or "")
+            specific = pat.split("·", 1)[1] if "·" in pat else ""
+            for part in re.split(r"[,/·\s]+", specific):
                 if part and len(part) >= 3:
                     tokens.append(part)
             files = match_by_tokens(root, tokens, exts)

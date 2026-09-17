@@ -47,11 +47,35 @@ def _roots_from_args(args) -> dict:
     return roots
 
 
+def _relativize_extract_roots(extract: dict) -> dict:
+    """Rewrite extract arch roots to paths relative to this repo."""
+    if not extract:
+        return extract
+    for blob in (extract.get("arches") or {}).values():
+        raw = blob.get("root") or ""
+        if not raw:
+            continue
+        p = expand_local_path(str(raw))
+        if p is None:
+            p = Path(str(raw).replace("\\", "/"))
+        try:
+            rel = p.resolve().relative_to(ROOT)
+            s = str(rel).replace("\\", "/")
+            blob["root"] = "." if s in (".", "") else s
+        except (ValueError, OSError):
+            s = str(raw).replace("\\", "/")
+            marker = "SuperNpuBench/"
+            i = s.find(marker)
+            blob["root"] = s[i:] if i >= 0 else s
+    return extract
+
+
 def cmd_extract(args):
     roots = _roots_from_args(args)
     if not roots:
         raise SystemExit("Need --local or at least one of --ascendc / --superscalar / --simt")
     data = extract_all(roots, args.operators)
+    _relativize_extract_roots(data)
     Path(args.out).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {args.out}")
     for arch, blob in data["arches"].items():
@@ -61,6 +85,7 @@ def cmd_extract(args):
 
 def cmd_score(args):
     extract = _read_json(args.extract)
+    _relativize_extract_roots(extract)
     hw = _read_json(args.hw)
     perf = _read_json(args.perf)
     measure = _read_json(args.data) if args.data else {}
@@ -69,7 +94,7 @@ def cmd_score(args):
     Path(args.out).write_text(json.dumps(computed, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {args.out}")
     if args.merge_data:
-        merged = merge_into_measure_data(measure, computed)
+        merged = merge_into_measure_data(measure, computed, extract)
         Path(args.merge_data).write_text(
             json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8"
         )
@@ -133,6 +158,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             try:
                 data = extract_all(resolved)
+                _relativize_extract_roots(data)
             except Exception as e:  # noqa: BLE001
                 self._json(500, {"error": str(e)})
                 return
@@ -174,6 +200,7 @@ def cmd_local(args):
     if args.extract:
         out = Path(args.out)
         data = extract_all(st["roots"])
+        _relativize_extract_roots(data)
         out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"wrote {out}")
         for arch, blob in data["arches"].items():
@@ -186,6 +213,12 @@ def cmd_local(args):
                 json.dumps(computed, ensure_ascii=False, indent=2), encoding="utf-8"
             )
             print(f"wrote {args.score_out}")
+            if args.merge_data:
+                merged = merge_into_measure_data(measure, computed, data)
+                Path(args.merge_data).write_text(
+                    json.dumps(merged, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                print(f"merged scores into {args.merge_data}")
     if args.serve:
         args.open_browser = not args.no_open
         cmd_serve(args)
@@ -224,6 +257,7 @@ def main(argv=None):
     loc.add_argument("--out", default="extract_result.json")
     loc.add_argument("--score", action="store_true", help="Also score after extract")
     loc.add_argument("--score-out", default="computed_scores.json")
+    loc.add_argument("--merge-data", default="", help="Merge computed scores into measure_data.json")
     loc.add_argument("--no-serve", dest="serve", action="store_false", help="Do not start HTTP server")
     loc.add_argument("--no-open", action="store_true", help="Do not open a browser")
     loc.set_defaults(func=cmd_local, serve=True, open_browser=False)
