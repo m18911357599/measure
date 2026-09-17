@@ -261,7 +261,7 @@ function renderCat(catName){
   for(const v of V) h+=`<th style="color:${VC[v]}">${v}</th>`;
   h+='<th>领先</th></tr></thead><tbody>';
   for(const si of items){
-    h+=`<tr><td style="font-size:10px">${si.code}</td><td style="text-align:left;font-size:11px">${si.C}</td><td style="color:var(--t2);font-size:10px">${W(si).toFixed(3)}</td>`;
+    h+=`<tr><td style="font-size:10px">${si.code}</td><td style="text-align:left;font-size:11px">${si.C} ${kindTag(si.code)}</td><td style="color:var(--t2);font-size:10px">${W(si).toFixed(3)}</td>`;
     let best=null,bv='';
     for(const v of V){
       const sc=getScore(si.code,v);
@@ -986,7 +986,7 @@ function renderHwCfg(){
 function hwRow(label,key,val,unit){
   const isName=key.indexOf('_name')>=0;
   const shown=(val===''||val==null)?'':val;
-  return`<div class="r"><label>${label}</label><input type="${isName?'text':'number'}" value="${shown}" onchange="setHwVal('${key}',this.value)" step="any" placeholder="未填不参与计分"><span class="note">${unit||''}</span></div>`;
+  return`<div class="r"><label>${label}</label><input type="${isName?'text':'number'}" value="${shown}" onchange="setHwVal('${key}',this.value)" step="any" placeholder="未填"><span class="note">${unit||''}</span></div>`;
 }
 function parseHwNum(val){return val===''?'':Number(val);}
 function setHwVal(key,val){
