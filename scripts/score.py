@@ -752,11 +752,18 @@ def score_all(extract: dict, hw: dict, perf: dict, patterns: Optional[List[dict]
     return {"kind": "computed_scores", "scores": scores, "by_arch": details}
 
 
-def merge_into_measure_data(measure: dict, computed: dict) -> dict:
-    """Write computed scores into measure_data.scores without dropping notes."""
+def merge_into_measure_data(measure: dict, computed: dict, extract: Optional[dict] = None) -> dict:
+    """Write computed scores into measure_data.scores without dropping notes.
+
+    None scores (missing HW/perf) are left unchanged so placeholder / spec
+    values are not wiped. Source-extract scores overwrite the matching slots.
+    """
+    from datetime import datetime, timezone
+
     out = json.loads(json.dumps(measure))
     src = computed.get("scores") or {}
     dest = out.setdefault("scores", {})
+    n = 0
     for code, by_arch in src.items():
         dest.setdefault(code, {})
         for arch, val in by_arch.items():
@@ -765,4 +772,43 @@ def merge_into_measure_data(measure: dict, computed: dict) -> dict:
             slot = dest[code].setdefault(arch, {})
             slot["score"] = val
             slot["source"] = "computed"
+            n += 1
+    meta = out.setdefault("meta", {})
+    meta["generated"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    meta["source"] = "scripts/measure.py extract+score (local kernels)"
+    coverage = {}
+    if extract:
+        out["extract"] = {
+            "version": extract.get("version"),
+            "kind": extract.get("kind"),
+            "arches": {},
+        }
+        for arch, blob in (extract.get("arches") or {}).items():
+            ops = blob.get("operators") or {}
+            found = sum(1 for o in ops.values() if not (o.get("metrics") or {}).get("missing"))
+            coverage[arch] = {"found": found, "total": len(ops), "root": blob.get("root")}
+            # Keep per-op metrics but drop bulky file lists in the report JSON.
+            slim_ops = {}
+            for oid, rec in ops.items():
+                m = dict(rec.get("metrics") or {})
+                files = m.pop("file_list", None) or []
+                m["n_files"] = len(files)
+                slim_ops[oid] = {
+                    "id": rec.get("id"),
+                    "pattern": rec.get("pattern"),
+                    "op": rec.get("op"),
+                    "weight": rec.get("weight"),
+                    "metrics": m,
+                }
+            out["extract"]["arches"][arch] = {
+                "arch": arch,
+                "root": blob.get("root"),
+                "operators": slim_ops,
+            }
+    meta["local_measure"] = {
+        "coverage": coverage,
+        "extract_file": "measure_extract.json",
+        "scores_file": "measure_scores.json",
+        "filled_slots": n,
+    }
     return out

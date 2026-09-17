@@ -197,7 +197,17 @@ function overall(){
 function renderSummary(){
   const ov=overall();
   let h='<h2>汇总</h2>';
-  if(COMPUTED) h+='<div class="warn">当前分类/子项得分已叠加「度量」流水线计算结果（源码提取 + 硬件规格 + Benchmark 性能）。手动改分优先。</div>';
+  const lm=D&&D.meta&&D.meta.local_measure;
+  const hasRepoComputed=D&&D.scores&&Object.values(D.scores).some(by=>by&&Object.values(by).some(s=>s&&s.source==='computed'));
+  if(COMPUTED||hasRepoComputed) h+='<div class="warn">当前分类/子项得分已叠加「度量」流水线计算结果（源码提取 + 硬件规格 + Benchmark 性能）。手动改分优先。</div>';
+  if(lm&&lm.coverage){
+    const parts=[];
+    for(const k of Object.keys(lm.coverage)){
+      const c=lm.coverage[k];
+      parts.push(k+' '+(c.found||0)+'/'+(c.total||0));
+    }
+    h+='<div class="note">仓库已合入本地度量数据（'+parts.join('，')+'）。完整提取见 <code>measure_extract.json</code>，得分见 <code>measure_scores.json</code> / <code>measure_data.json</code>。硬件规格与 Benchmark 性能项仍待填写，未覆盖的仍保留原占位分。</div>';
+  }
   h+='<div class="scards">';
   for(const v of V) h+=`<div class="sc"><div class="v">${v}</div><div class="s" style="color:${VC[v]}">${S(ov[v])}</div><div class="u">综合易用性</div></div>`;
   h+='</div>';
@@ -1163,7 +1173,8 @@ function renderExtractTable(){
     for(const v of V){
       const m=((((EXTRACT.arches[v]||{}).operators||{})[String(op.id)]||{}).metrics)||{};
       const miss=m.missing||!m.L_total;
-      h+=`<td>${miss?'—':m.L_total}</td><td>${miss?'—':m.L_dma}</td><td>${miss?'0':(m.files||(m.file_list||[]).length)}</td>`;
+      const nfile=m.files||m.n_files||(m.file_list||[]).length||0;
+      h+=`<td>${miss?'—':m.L_total}</td><td>${miss?'—':m.L_dma}</td><td>${miss?'0':nfile}</td>`;
     }
     h+='</tr>';
   }
@@ -1329,10 +1340,20 @@ fetch('measure_data.json').then(r=>{
     if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
   }catch(e){}
   loadHW();
-  fetch('/api/local').then(r=>r.ok?r.json():null).then(info=>{
-    if(info) LOCAL_INFO=info;
-    routeFromHash();
-  }).catch(()=>routeFromHash());
+  const loadRepo=Promise.all([
+    EXTRACT?Promise.resolve(null):fetch('measure_extract.json').then(r=>r.ok?r.json():null).catch(()=>null),
+    COMPUTED?Promise.resolve(null):fetch('measure_scores.json').then(r=>r.ok?r.json():null).catch(()=>null)
+  ]).then(([ex,sc])=>{
+    if(ex&&ex.arches) EXTRACT=ex;
+    else if(!EXTRACT&&D.extract) EXTRACT=D.extract;
+    if(sc&&sc.scores) COMPUTED=sc;
+  });
+  loadRepo.then(()=>{
+    fetch('/api/local').then(r=>r.ok?r.json():null).then(info=>{
+      if(info) LOCAL_INFO=info;
+      routeFromHash();
+    }).catch(()=>routeFromHash());
+  });
 }).catch(e=>{
   var el=document.getElementById('main');
   el.innerHTML='<div class="warn">JSON加载失败: '+e.message+'</div>';

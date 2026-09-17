@@ -260,6 +260,27 @@ class LocalOpsTests(unittest.TestCase):
             files = " ".join(data["arches"]["AscendC"]["operators"][oid]["metrics"].get("file_list") or [])
             self.assertIn(needle, files.replace("\\", "/"), f"#{oid} {by_id[oid]['pattern']}")
 
+    def test_merge_keeps_placeholders_and_records_extract(self):
+        from score import merge_into_measure_data, score_all
+        fx = ROOT / "tests" / "fixtures"
+        extract = extract_all({"AscendC": str(fx)})
+        computed = score_all(extract, {}, {}, None)
+        measure = {
+            "meta": {},
+            "scores": {
+                "1.a.1": {"AscendC": {"score": 5, "source": "profiling"}},
+                "7.a.1": {"AscendC": {"score": 5, "source": "hardware"}},
+            },
+        }
+        merged = merge_into_measure_data(measure, computed, extract)
+        self.assertEqual(merged["scores"]["1.a.1"]["AscendC"]["score"], 5)
+        self.assertEqual(merged["scores"]["1.a.1"]["AscendC"]["source"], "profiling")
+        self.assertEqual(merged["scores"]["7.a.1"]["AscendC"]["source"], "hardware")
+        self.assertEqual(merged["scores"]["3.a.5"]["AscendC"]["source"], "computed")
+        self.assertIsNotNone(merged["scores"]["3.a.5"]["AscendC"]["score"])
+        self.assertIn("extract", merged)
+        self.assertGreaterEqual(merged["meta"]["local_measure"]["coverage"]["AscendC"]["found"], 1)
+
     def test_super_extract_from_vendored_kernels(self):
         kernels = (
             ROOT / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels"
