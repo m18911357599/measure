@@ -254,14 +254,20 @@ def match_globs(root: Path, globs: Sequence[str]) -> List[Path]:
     return found
 
 
+def _fold_token(s: str) -> str:
+    """Normalize path/token so arg_max matches argmax, drop_out matches dropout."""
+    return s.lower().replace("_", "").replace("-", "")
+
+
 def match_by_tokens(root: Path, tokens: Sequence[str], extensions: Sequence[str]) -> List[Path]:
     """Fallback: any source file whose path contains one of the tokens."""
-    toks = [t.lower() for t in tokens if t and t.lower() not in ("na", "类")]
+    toks = [_fold_token(t) for t in tokens if t and t.lower() not in ("na", "类")]
+    toks = [t for t in toks if t]
     if not toks:
         return []
     hit = []
     for f in iter_source_files(root, extensions):
-        s = str(f).lower()
+        s = _fold_token(str(f))
         if any(t in s for t in toks):
             hit.append(f)
     return hit

@@ -192,7 +192,13 @@ class LocalOpsTests(unittest.TestCase):
         for arch in ("AscendC", "SuperScalar", "SIMT"):
             p = Path(roots[arch])
             self.assertTrue(p.is_dir(), arch)
-            self.assertEqual(p.name, "fixtures")
+        ascend = Path(roots["AscendC"]).resolve()
+        if (ROOT / "ops-nn").is_dir() and (ROOT / "ops-math").is_dir():
+            self.assertEqual(ascend, ROOT.resolve())
+        else:
+            self.assertEqual(Path(roots["AscendC"]).name, "fixtures")
+        for arch in ("SuperScalar", "SIMT"):
+            self.assertEqual(Path(roots[arch]).name, "fixtures")
         st = local_status(ROOT)
         self.assertTrue(st["exists"]["AscendC"])
 
@@ -231,6 +237,23 @@ class LocalOpsTests(unittest.TestCase):
         finally:
             if out.exists():
                 out.unlink()
+
+    def test_cann_globs_cover_underscore_names(self):
+        if not (ROOT / "ops-math" / "math" / "arg_max_v2").is_dir():
+            self.skipTest("vendored CANN kernels not present")
+        from extract_source import load_operators
+        operators = load_operators()
+        data = extract_all({"AscendC": str(ROOT)}, ROOT / "scripts" / "operators.json")
+        missing = [
+            o["id"]
+            for o in data["arches"]["AscendC"]["operators"].values()
+            if o["metrics"].get("missing")
+        ]
+        self.assertEqual(missing, [], f"AscendC missing patterns {missing}")
+        by_id = {str(o["id"]): o for o in operators["operators"]}
+        for oid, needle in (("5", "arg_max"), ("11", "affine_grid"), ("21", "drop_out")):
+            files = " ".join(data["arches"]["AscendC"]["operators"][oid]["metrics"].get("file_list") or [])
+            self.assertIn(needle, files.replace("\\", "/"), f"#{oid} {by_id[oid]['pattern']}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "source": "https://gitcode.com/cann",
+  "tag": "9.0.0",
+  "note": "26 Pattern 对应 CANN 算子目录（优先 op_kernel）。#11 三仓无 resize/grid_sample，用 affine_grid。#19 仅有 rfft1_d。",
+  "picks": {
+    "1": {
+      "pattern": "Elementwise · silu/gelu/add",
+      "dirs": [
+        "ops-nn/activation/gelu",
+        "ops-nn/activation/swi_glu",
+        "ops-math/math/add"
+      ]
+    },
+    "2": {
+      "pattern": "Broadcast · bias_add",
+      "dirs": [
+        "ops-math/math/bias_add",
+        "ops-math/conversion/broadcast_to",
+        "ops-nn/norm/add_layer_norm"
+      ]
+    },
+    "3": {
+      "pattern": "Reduction · sum/mean/max",
+      "dirs": [
+        "ops-math/math/reduce_sum",
+        "ops-math/math/reduce_mean",
+        "ops-math/math/reduce_max"
+      ]
+    },
+    "4": {
+      "pattern": "Contraction · matmul/linear",
+      "dirs": [
+        "ops-nn/matmul/mat_mul_v3",
+        "ops-nn/matmul/quant_matmul",
+        "ops-nn/matmul/transpose_batch_mat_mul"
+      ]
+    },
+    "5": {
+      "pattern": "ArgReduce · argmax/argmin",
+      "dirs": [
+        "ops-math/math/arg_max_v2",
+        "ops-math/math/arg_min"
+      ]
+    },
+    "6": {
+      "pattern": "Layout Transform · View",
+      "dirs": [
+        "ops-math/conversion/view_copy",
+        "ops-math/conversion/transpose",
+        "ops-math/conversion/reshape"
+      ]
+    },
+    "7": {
+      "pattern": "Padding · pad",
+      "dirs": [
+        "ops-math/conversion/pad",
+        "ops-math/conversion/pad_v3"
+      ]
+    },
+    "8": {
+      "pattern": "IndexGather · gather/embedding",
+      "dirs": [
+        "ops-nn/index/gather_v2",
+        "ops-nn/index/embedding_bag"
+      ]
+    },
+    "9": {
+      "pattern": "ScatterUpdate · scatter",
+      "dirs": [
+        "ops-nn/index/scatter",
+        "ops-nn/index/index_put"
+      ]
+    },
+    "10": {
+      "pattern": "AtomicUpdate · scatter_add",
+      "dirs": [
+        "ops-nn/index/scatter_add",
+        "ops-nn/index/inplace_scatter_add"
+      ]
+    },
+    "11": {
+      "pattern": "Interpolation · grid_sample",
+      "dirs": [
+        "ops-math/math/affine_grid"
+      ],
+      "missing": "ops-nn/ops-math/ops-transformer @9.0.0 无 resize/upsample/grid_sample kernel"
+    },
+    "12": {
+      "pattern": "MaskPredicate · where",
+      "dirs": [
+        "ops-nn/index/where",
+        "ops-math/math/select"
+      ]
+    },
+    "13": {
+      "pattern": "SortSelect · topk/sort",
+      "dirs": [
+        "ops-math/math/sort",
+        "ops-math/math/topk"
+      ]
+    },
+    "14": {
+      "pattern": "Histogram · bincount",
+      "dirs": [
+        "ops-math/math/bincount",
+        "ops-math/math/histogram_v2"
+      ]
+    },
+    "15": {
+      "pattern": "SlidingWindow · conv2d/pool",
+      "dirs": [
+        "ops-nn/conv/conv2d_v2",
+        "ops-nn/pooling/max_pool_v3"
+      ]
+    },
+    "16": {
+      "pattern": "ControlFlow · cond/while",
+      "dirs": [
+        "ops-nn/loss/ctc_loss_v3"
+      ]
+    },
+    "17": {
+      "pattern": "Recurrence · cumsum/lstm",
+      "dirs": [
+        "ops-math/math/cumsum",
+        "ops-nn/rnn/dynamic_rnn"
+      ]
+    },
+    "18": {
+      "pattern": "MegaKernel · MegaMoe",
+      "dirs": [
+        "ops-transformer/moe/moe_init_routing",
+        "ops-transformer/moe/moe_finalize_routing",
+        "ops-transformer/gmm/grouped_matmul_swiglu_quant"
+      ]
+    },
+    "19": {
+      "pattern": "Spectral · fft/dct",
+      "dirs": [
+        "ops-math/math/rfft1_d"
+      ],
+      "missing": "无独立 dct kernel，仅 rfft1_d"
+    },
+    "20": {
+      "pattern": "DynamicShape · 动态batch",
+      "dirs": [
+        "ops-nn/index/non_zero",
+        "ops-nn/index/unique_consecutive"
+      ]
+    },
+    "21": {
+      "pattern": "RandomSampling · dropout",
+      "dirs": [
+        "ops-math/random/drop_out_v3",
+        "ops-math/random/drop_out_do_mask"
+      ]
+    },
+    "22": {
+      "pattern": "Norm 类",
+      "dirs": [
+        "ops-nn/norm/rms_norm",
+        "ops-nn/norm/layer_norm_v3",
+        "ops-nn/norm/group_norm_grad"
+      ]
+    },
+    "23": {
+      "pattern": "Sparse · sparse.mm",
+      "dirs": [
+        "ops-nn/matmul/sparse_tensor_dense_mat_mul"
+      ]
+    },
+    "24": {
+      "pattern": "Quantization · int8/fp8",
+      "dirs": [
+        "ops-nn/quant/dynamic_quant",
+        "ops-nn/quant/dynamic_mx_quant"
+      ]
+    },
+    "25": {
+      "pattern": "CollectiveComm · all_reduce",
+      "dirs": [
+        "ops-transformer/mc2/moe_distribute_dispatch",
+        "ops-transformer/mc2/moe_distribute_combine",
+        "ops-transformer/mc2/matmul_all_reduce"
+      ]
+    },
+    "26": {
+      "pattern": "FusedComposite · softmax/FA",
+      "dirs": [
+        "ops-transformer/attention/flash_attention_score",
+        "ops-transformer/attention/fused_infer_attention_score",
+        "ops-transformer/attention/prompt_flash_attention",
+        "ops-transformer/attention/incre_flash_attention"
+      ]
+    }
+  }
+}
