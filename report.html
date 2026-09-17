@@ -1125,7 +1125,7 @@ function renderMeasure(){
   h+='<table><thead><tr><th>架构</th><th style="text-align:left">参考仓库 / 目录</th></tr></thead><tbody>';
   h+='<tr><td style="color:#58a6ff">AscendC</td><td style="text-align:left">本仓库 <code>ops-nn/</code> <code>ops-math/</code> <code>ops-transformer/</code>（CANN 9.0.0，26 Pattern 对应 kernel；刷新运行 <code>download_cann_ops.cmd</code>）</td></tr>';
   h+='<tr><td style="color:#bc8cff">SuperScalar</td><td style="text-align:left">本仓库 <code>SuperNpuBench/benchmark/one-level-arch/kernels/</code>（<code>solution/</code> + <code>single_thread/</code> 补齐，分支 ops-20260908）</td></tr>';
-  h+='<tr><td style="color:#3fb950">SIMT</td><td style="text-align:left">CUDA kernels（cutlass / cub / 自定义 .cu）</td></tr>';
+  h+='<tr><td style="color:#3fb950">SIMT</td><td style="text-align:left">本仓库 <code>gemm-cuda/</code>（<a href="https://gitcode.com/mlidongfeng/gemm-cuda">gitcode.com/mlidongfeng/gemm-cuda</a>，fork of LinPX/gemm-cuda；刷新运行 <code>download_cann_ops.cmd</code>，私有仓需 <code>GITCODE_TOKEN</code>）</td></tr>';
   h+='</tbody></table></div>';
 
   h+='<div class="cfg"><h4>1. 选择本地算子源码目录</h4>';
@@ -1137,11 +1137,11 @@ function renderMeasure(){
   h+=`<button class="btn btn-m" onclick="runBrowserExtract()">运行源码提取</button></div>`;
 
   h+='<div class="cfg"><h4>2. 本地缓存提取（D:/cursor/measure）</h4>';
-  h+='<div class="note">文档、脚本、26 个 CANN 算子与 SuperNpuBench kernel 在 Cursor 本地缓存 <code>D:/cursor/measure</code>（git pull 即可）。本机运行 <code>local_measure.cmd</code> 或 <code>python scripts/measure.py local</code> 后，点「度量（本地缓存）」即可。若需从 gitcode.com/cann 与 GitHub SuperNpuBench 重新拉取，运行 <code>download_cann_ops.cmd</code>。</div>';
+  h+='<div class="note">文档、脚本、26 个 CANN 算子、SuperNpuBench kernel 与 SIMT <code>gemm-cuda/</code> 在 Cursor 本地缓存 <code>D:/cursor/measure</code>（git pull 即可）。本机运行 <code>local_measure.cmd</code> 或 <code>python scripts/measure.py local</code> 后，点「度量（本地缓存）」即可。若需从 gitcode.com/cann、GitHub SuperNpuBench 与 gitcode.com/mlidongfeng/gemm-cuda 重新拉取，运行 <code>download_cann_ops.cmd</code>（SIMT 私有 fork 需设置 <code>GITCODE_TOKEN</code>）。</div>';
   h+=`<div class="note">当前缓存：<span id="local_cache_label">${(LOCAL_INFO&&LOCAL_INFO.cache_root)||'D:/cursor/measure'}</span></div>`;
   h+='<div class="r"><label>AscendC 路径</label><input class="wide" id="path_AscendC" placeholder="D:/cursor/measure 或 ops-nn 根目录"></div>';
   h+='<div class="r"><label>SuperScalar 路径</label><input class="wide" id="path_SuperScalar" placeholder="D:/cursor/measure/.../kernels/solution"></div>';
-  h+='<div class="r"><label>SIMT 路径</label><input class="wide" id="path_SIMT" placeholder="D:/cursor/measure 或 CUDA kernels"></div>';
+  h+='<div class="r"><label>SIMT 路径</label><input class="wide" id="path_SIMT" placeholder="D:/cursor/measure/gemm-cuda"></div>';
   h+=`<button class="btn btn-m" onclick="runLocalCacheExtract()">度量（本地缓存）</button>
       <button class="btn btn-m" onclick="runServerExtract()">按路径提取</button>
       <button class="btn" onclick="importExtractJson()">导入 extract JSON</button>

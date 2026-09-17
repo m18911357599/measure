@@ -19,7 +19,7 @@
       "extensions": [".hpp", ".h", ".cpp", ".cc", ".c"]
     },
     "SIMT": {
-      "repos": ["CUDA (cutlass / cub / custom kernels)"],
+      "repos": ["https://gitcode.com/mlidongfeng/gemm-cuda"],
       "prefer_subdirs": [],
       "extensions": [".cu", ".cuh", ".h", ".hpp", ".cpp"]
     }
@@ -66,7 +66,7 @@
       "globs": {
         "AscendC": ["**/matmul*/op_kernel/**", "**/quant_matmul*/**", "**/batch_mat_mul*/op_kernel/**", "**/transpose_batch_mat_mul*/op_kernel/**"],
         "SuperScalar": ["**/solution/matmul_test/**", "**/single_thread/matmul/**", "**/matmul/**"],
-        "SIMT": ["**/*gemm*.cu", "**/*matmul*.cu", "**/cutlass/**/gemm/**"]
+        "SIMT": ["**/*gemm*.cu", "**/*gemm*.cuh", "**/*matmul*.cu", "**/*sgemm*", "**/*hgemm*", "**/cutlass/**/gemm/**"]
       }
     },
     {

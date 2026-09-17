@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "source": "https://gitcode.com/mlidongfeng/gemm-cuda",
+  "upstream": "https://gitcode.com/LinPX/gemm-cuda",
+  "dest": "gemm-cuda",
+  "branch": "",
+  "note": "SIMT 26 Pattern 以 gitcode.com/mlidongfeng/gemm-cuda（LinPX/gemm-cuda fork）为准。优先匹配 operators.json 的 SIMT globs；未点名的 GEMM/WMMA 源文件归 #4 Contraction。私有仓需环境变量 GITCODE_TOKEN（gitcode 私人令牌）。",
+  "auth_env": "GITCODE_TOKEN"
+}

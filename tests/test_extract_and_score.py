@@ -202,7 +202,12 @@ class LocalOpsTests(unittest.TestCase):
             self.assertNotEqual(super_p.name, "fixtures")
         else:
             self.assertEqual(super_p.name, "fixtures")
-        self.assertEqual(Path(roots["SIMT"]).name, "fixtures")
+        simt_p = Path(roots["SIMT"])
+        gemm = ROOT / "gemm-cuda"
+        if gemm.is_dir() and any(gemm.rglob("*.cu")):
+            self.assertEqual(simt_p.name, "gemm-cuda")
+        else:
+            self.assertEqual(simt_p.name, "fixtures")
         st = local_status(ROOT)
         self.assertTrue(st["exists"]["AscendC"])
 
@@ -219,10 +224,11 @@ class LocalOpsTests(unittest.TestCase):
             sol = sol_parent / "solution"
             sol.mkdir(parents=True)
             (td / "cuda").mkdir()
+            (td / "gemm-cuda").mkdir()
             roots = discover_roots(td, ROOT)
             self.assertEqual(Path(roots["AscendC"]).resolve(), td.resolve())
             self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol_parent.resolve())
-            self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "cuda").resolve())
+            self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "gemm-cuda").resolve())
         finally:
             shutil.rmtree(td)
 
@@ -238,7 +244,14 @@ class LocalOpsTests(unittest.TestCase):
             data = json.loads(out.read_text(encoding="utf-8"))
             self.assertFalse(data["arches"]["AscendC"]["operators"]["1"]["metrics"]["missing"])
             self.assertFalse(data["arches"]["SuperScalar"]["operators"]["4"]["metrics"]["missing"])
-            self.assertFalse(data["arches"]["SIMT"]["operators"]["1"]["metrics"]["missing"])
+            simt = data["arches"]["SIMT"]["operators"]
+            found = [oid for oid, o in simt.items() if not o["metrics"].get("missing")]
+            self.assertTrue(found, "SIMT should have at least one operator")
+            root_name = Path(data["arches"]["SIMT"]["root"]).name
+            if root_name in ("fixtures", "tests"):
+                self.assertIn("1", found)
+            elif root_name == "gemm-cuda":
+                self.assertIn("4", found)
         finally:
             if out.exists():
                 out.unlink()
@@ -296,6 +309,87 @@ class LocalOpsTests(unittest.TestCase):
         self.assertTrue(ops["20"]["metrics"].get("missing"), "dynamic-batch must not steal mx quant")
         files4 = " ".join(ops["4"]["metrics"].get("file_list") or [])
         self.assertIn("matmul", files4.replace("\\", "/"))
+
+
+class SimtGemmCudaTests(unittest.TestCase):
+    def test_auth_url_embeds_token_and_redacts(self):
+        from download_cann_ops import _redact_cmd, simt_auth_url
+        url = "https://gitcode.com/mlidongfeng/gemm-cuda.git"
+        auth = simt_auth_url(url, "secret-token", "oauth2")
+        self.assertIn("secret-token", auth)
+        self.assertTrue(auth.startswith("https://oauth2:secret-token@gitcode.com/"))
+        red = " ".join(_redact_cmd(["git", "clone", auth, "dest"]))
+        self.assertNotIn("secret-token", red)
+        self.assertIn("oauth2:***@", red)
+        self.assertEqual(simt_auth_url(url, ""), url)
+
+    def test_copy_and_map_gemm_files(self):
+        import shutil
+        import tempfile
+        from download_cann_ops import copy_simt_tree, map_simt_patterns
+        from extract_source import load_operators
+        td = Path(tempfile.mkdtemp())
+        try:
+            src = td / "src"
+            (src / "src").mkdir(parents=True)
+            (src / "README.md").write_text("# gemm-cuda\n", encoding="utf-8")
+            (src / "src" / "sgemm.cu").write_text(
+                "__global__ void sgemm() { __syncthreads(); }\n", encoding="utf-8"
+            )
+            (src / "tests" / "bench.cu").parent.mkdir(parents=True)
+            (src / "tests" / "bench.cu").write_text("// test only\n", encoding="utf-8")
+            dst = td / "gemm-cuda"
+            n = copy_simt_tree(src, dst, include_optional=False)
+            self.assertGreaterEqual(n, 2)
+            self.assertTrue((dst / "src" / "sgemm.cu").is_file())
+            self.assertFalse((dst / "tests" / "bench.cu").is_file())
+            stats = map_simt_patterns(dst, load_operators())
+            self.assertGreater(stats["4"]["files"], 0)
+            self.assertTrue(any("sgemm" in p for p in stats["4"]["present"]))
+        finally:
+            shutil.rmtree(td)
+
+    def test_gemm_cuda_does_not_leak_into_ascendc(self):
+        import shutil
+        import tempfile
+        td = Path(tempfile.mkdtemp())
+        try:
+            gelu = td / "ops-nn" / "activation" / "gelu" / "op_kernel"
+            gelu.mkdir(parents=True)
+            gelu_src = (ROOT / "tests" / "fixtures" / "ascendc_gelu.cpp").read_text(encoding="utf-8")
+            (gelu / "gelu.cpp").write_text(gelu_src, encoding="utf-8")
+            (td / "gemm-cuda").mkdir()
+            (td / "gemm-cuda" / "gelu.cu").write_text(
+                "__global__ void gelu() {}\n", encoding="utf-8"
+            )
+            (td / "gemm-cuda" / "sgemm.cu").write_text(
+                "__global__ void sgemm() { __syncthreads(); }\n", encoding="utf-8"
+            )
+            data = extract_all(
+                {"AscendC": str(td), "SIMT": str(td / "gemm-cuda")},
+                ROOT / "scripts" / "operators.json",
+            )
+            afiles = " ".join(
+                data["arches"]["AscendC"]["operators"]["1"]["metrics"].get("file_list") or []
+            )
+            self.assertNotIn(".cu", afiles)
+            self.assertFalse(data["arches"]["SIMT"]["operators"]["4"]["metrics"].get("missing"))
+            sfiles = " ".join(
+                data["arches"]["SIMT"]["operators"]["4"]["metrics"].get("file_list") or []
+            )
+            self.assertIn("sgemm.cu", sfiles.replace("\\", "/"))
+        finally:
+            shutil.rmtree(td)
+
+    def test_simt_extract_from_vendored_gemm_cuda(self):
+        gemm = ROOT / "gemm-cuda"
+        if not gemm.is_dir() or not any(gemm.rglob("*.cu")):
+            self.skipTest("vendored gemm-cuda kernels not present")
+        data = extract_all({"SIMT": str(gemm)}, ROOT / "scripts" / "operators.json")
+        ops = data["arches"]["SIMT"]["operators"]
+        present = [oid for oid, o in ops.items() if not o["metrics"].get("missing")]
+        self.assertTrue(present, "vendored gemm-cuda should match at least one pattern")
+        self.assertIn("4", present)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 """Discover local cache roots for Windows/Linux measure checkouts.
 
 Default cache: D:/cursor/measure (Cursor local workspace). Operator trees
-are optional siblings or subfolders (ops-nn, SuperNpuBench, cuda). If they
+are optional siblings or subfolders (ops-nn, SuperNpuBench, gemm-cuda). If they
 are missing, tests/fixtures is used so 度量 still runs on this repo alone.
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ SUPER_HINTS = (
     "one-level-arch/kernels/solution",
     "kernels/solution",
 )
-SIMT_HINTS = ("cuda", "cutlass", "cub", "cuda-kernels")
+SIMT_HINTS = ("gemm-cuda", "cuda", "cutlass", "cub", "cuda-kernels")
 
 
 def expand_local_path(raw: Optional[str]) -> Optional[Path]:
