@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+extract_result.json
+computed_scores.json
+measure_local.json

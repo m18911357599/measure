@@ -2,7 +2,13 @@
   "meta": {
     "generated": "2026-09-15T08:24:21.860588",
     "source": "measure.py",
-    "version": "2.0"
+    "version": "3.0",
+    "measure_pipeline": {
+      "extract": "scripts/measure.py extract",
+      "score": "scripts/measure.py score",
+      "serve": "scripts/measure.py serve",
+      "report": "report.html 度量按钮"
+    }
   },
   "categories": [
     {
@@ -54,7 +60,8 @@
       "C": "访存带宽",
       "weight": 1,
       "formula": "成本型: S=10·clamp(1-X/Xref,0,1), 四维度各分60/90/99%三档",
-      "source_type": "profiling"
+      "source_type": "profiling",
+      "source_kind": "benchmark_perf"
     },
     {
       "code": "3.a.1",
@@ -63,7 +70,8 @@
       "C": "对齐颗粒度",
       "weight": 0.1111,
       "formula": "Si=10·(ln64-lns)/ln64",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "hw_spec"
     },
     {
       "code": "3.a.2",
@@ -72,7 +80,8 @@
       "C": "bank/bankgroup",
       "weight": 0.1111,
       "formula": "S=0.6Sγ+0.4SV, Sγ代码修改比, SV圈复杂度",
-      "source_type": "profiling"
+      "source_type": "profiling",
+      "source_kind": "mixed"
     },
     {
       "code": "3.a.3",
@@ -81,7 +90,8 @@
       "C": "层级数",
       "weight": 0.1111,
       "formula": "S=avg(四通路), Sx=10·clamp(1-Px/3,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "hw_spec"
     },
     {
       "code": "3.a.4",
@@ -90,7 +100,8 @@
       "C": "容量",
       "weight": 0.1111,
       "formula": "ρ≤1→10分, ρ>1→S=10/ρ",
-      "source_type": "profiling"
+      "source_type": "profiling",
+      "source_kind": "mixed"
     },
     {
       "code": "3.a.5",
@@ -99,7 +110,8 @@
       "C": "层级间通路",
       "weight": 0.1111,
       "formula": "γ=Ldma/Ltotal, S=10·clamp(1-γ/0.3,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "3.b.1",
@@ -108,7 +120,8 @@
       "C": "dcache一致性",
       "weight": 0.1111,
       "formula": "γ=Lcoh/Ltotal, S=10·clamp(1-γ/0.2,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "3.b.2",
@@ -117,7 +130,8 @@
       "C": "hint行为控制",
       "weight": 0.1111,
       "formula": "S=0.45·clamp(10-2Nhint,0,10)+0.55·Sgap",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "3.b.3",
@@ -126,7 +140,8 @@
       "C": "亲Die部署",
       "weight": 0.1111,
       "formula": "S=10-5·fcluster, clamp[0,10]",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "3.b.4",
@@ -135,7 +150,8 @@
       "C": "容量",
       "weight": 0.1111,
       "formula": "S=0.4Sratio+0.6Smiss",
-      "source_type": "profiling"
+      "source_type": "profiling",
+      "source_kind": "mixed"
     },
     {
       "code": "4.a.1",
@@ -144,7 +160,8 @@
       "C": "计算指令原子性",
       "weight": 0.1667,
       "formula": "τ=Nviol/Napi, S=10(1-τ)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "4.a.2",
@@ -153,7 +170,8 @@
       "C": "性能一致性",
       "weight": 0.1667,
       "formula": "S=0.65·10(1-η)+0.35·友商对标, η=Napi_dup/Nhw",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "hw_spec"
     },
     {
       "code": "4.a.3",
@@ -162,7 +180,8 @@
       "C": "指令参数",
       "weight": 0.1667,
       "formula": "S=0.5Sπ+0.5Sε",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "4.a.4",
@@ -171,7 +190,8 @@
       "C": "指令完备性",
       "weight": 0.1667,
       "formula": "S=0.25Shw+0.25Ssimt+0.15Ssw+0.35Scover",
-      "source_type": "manual"
+      "source_type": "manual",
+      "source_kind": "hw_spec"
     },
     {
       "code": "4.b.1",
@@ -180,7 +200,8 @@
       "C": "性能一致性",
       "weight": 0.1667,
       "formula": "ρi=Tfused/Tno_fused, Si=10·clamp(1-|ρi-1|/0.25,0,1)",
-      "source_type": "profiling"
+      "source_type": "profiling",
+      "source_kind": "benchmark_perf"
     },
     {
       "code": "4.b.2",
@@ -189,7 +210,8 @@
       "C": "低bit量化",
       "weight": 0.1667,
       "formula": "S=0.30Stypes+0.25Sacc+0.20Slayout+0.25Smfu 四维度(数据类型/精度/Layout/MFU)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "5.a.1",
@@ -198,7 +220,8 @@
       "C": "多pipeline并行",
       "weight": 0.1667,
       "formula": "γ=Pruntime/Psrc, S=10·clamp(2-γ,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "5.b.1",
@@ -207,7 +230,8 @@
       "C": "核间同步",
       "weight": 0.1667,
       "formula": "r=Lsync/Ltotal, S=10·clamp(1-r/0.3,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "5.b.2",
@@ -216,7 +240,8 @@
       "C": "核内同步",
       "weight": 0.1667,
       "formula": "r=Lintra/Ltotal, S=10·clamp(1-r/0.25,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "5.c.1",
@@ -225,7 +250,8 @@
       "C": "生产者消费者模型",
       "weight": 0.1667,
       "formula": "r=Lpc/Ltotal, S=10·clamp(1-r/0.35,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "5.d.1",
@@ -234,7 +260,8 @@
       "C": "Scalar bound",
       "weight": 0.1667,
       "formula": "S=0.55·Stime+0.45·Scode",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "5.e.1",
@@ -243,7 +270,8 @@
       "C": "头开销",
       "weight": 0.1667,
       "formula": "S=0.55·Stime+0.45·Scode",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     },
     {
       "code": "6.a.1",
@@ -252,7 +280,8 @@
       "C": "分型",
       "weight": 0.3333,
       "formula": "r=Ldma_args/Ltotal, S=10·clamp(1-r/0.35,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "6.a.2",
@@ -261,7 +290,8 @@
       "C": "非结构化访存",
       "weight": 0.3333,
       "formula": "r=Laddr/Ltotal, S=10·clamp(1-r/0.3,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "6.b.1",
@@ -270,7 +300,8 @@
       "C": "申请与管理",
       "weight": 0.3333,
       "formula": "r=Lalloc/Ltotal, S=10·clamp(1-r/0.25,0,1)",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "source"
     },
     {
       "code": "7.a.1",
@@ -279,7 +310,8 @@
       "C": "异常类型覆盖率",
       "weight": 0.0625,
       "formula": "rcov=已检测/定义总数, S=10·rcov",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.a.2",
@@ -288,7 +320,8 @@
       "C": "异常检出率",
       "weight": 0.0625,
       "formula": "S=0.6·10pdet+0.4Snoise",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.a.3",
@@ -297,7 +330,8 @@
       "C": "上报完整率准确率",
       "weight": 0.0625,
       "formula": "S=0.55·10cacc+0.45·10ccomp",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.a.4",
@@ -306,7 +340,8 @@
       "C": "首因识别率",
       "weight": 0.0625,
       "formula": "rroot=正确首因/级联总数, S=10·rroot",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.b.1",
@@ -315,7 +350,8 @@
       "C": "断点类型覆盖率",
       "weight": 0.0625,
       "formula": "rbpcov=已支持/12类, S=10·rbpcov",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.b.2",
@@ -324,7 +360,8 @@
       "C": "可设位置覆盖率",
       "weight": 0.0625,
       "formula": "rloc=可设/理论总数, S=10·rloc",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.b.3",
@@ -333,7 +370,8 @@
       "C": "PC定位准确率",
       "weight": 0.0625,
       "formula": "rpc=PC一致/命中总数, S=10·rpc",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.b.4",
@@ -342,7 +380,8 @@
       "C": "多核暂停一致率",
       "weight": 0.0625,
       "formula": "rhalt=稳定暂停/请求总数, S=10·rhalt",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.c.1",
@@ -351,7 +390,8 @@
       "C": "观测对象覆盖率",
       "weight": 0.0625,
       "formula": "robscov=可观测/要求总数, S=10·robscov",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.1",
@@ -360,7 +400,8 @@
       "C": "事件类型覆盖率",
       "weight": 0.0625,
       "formula": "revtcov=可采集/要求总数, S=10·revtcov",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.2",
@@ -369,7 +410,8 @@
       "C": "指标准确性",
       "weight": 0.0625,
       "formula": "erel=avg|测量-基准|/基准, S=10·clamp(1-erel/0.1,0,1)",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.3",
@@ -378,7 +420,8 @@
       "C": "数据丢失率",
       "weight": 0.0625,
       "formula": "rloss=未丢失/理论总数, S=10·clamp((rloss-0.95)/0.05,0,1)",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.4",
@@ -387,7 +430,8 @@
       "C": "瓶颈类型覆盖率",
       "weight": 0.0625,
       "formula": "rbncov=可归因/9类, S=10·rbncov",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.5",
@@ -396,7 +440,8 @@
       "C": "Stall解释覆盖率",
       "weight": 0.0625,
       "formula": "rexpl=可归因Stall/总Stall, S=10·rexpl",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.6",
@@ -405,7 +450,8 @@
       "C": "低扰动采集开销",
       "weight": 0.0625,
       "formula": "S=0.55Stime+0.45Spert",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "7.d.7",
@@ -414,7 +460,8 @@
       "C": "端到端关联率",
       "weight": 0.0625,
       "formula": "rtask=可关联/硬件总数, S=10·rtask",
-      "source_type": "hardware"
+      "source_type": "hardware",
+      "source_kind": "hw_spec"
     },
     {
       "code": "8.a.1",
@@ -423,7 +470,8 @@
       "C": "Agent性能达成率",
       "weight": 1,
       "formula": "η=Pagent/Ptheory, S=10·clamp(η,0,1)",
-      "source_type": "agent"
+      "source_type": "agent",
+      "source_kind": "benchmark_perf"
     },
     {
       "code": "9.a.1",
@@ -432,7 +480,8 @@
       "C": "版本开发代价",
       "weight": 1,
       "formula": "S=0.25SN+0.35Sγ+0.4Sρ",
-      "source_type": "static"
+      "source_type": "static",
+      "source_kind": "mixed"
     }
   ],
   "patterns": [
@@ -788,35 +837,113 @@
     }
   },
   "hw_defaults": {
-    "N": 0,
-    "Bpeak_GBs": 0,
-    "cacheline_B": 64,
-    "tile_min": 8192,
-    "tile_max": 65536,
-    "burst_min": 32,
-    "burst_max": 256,
-    "buffers": [
-      {
-        "name": "UB",
-        "align_B": 0,
-        "cap_KiB": 0
-      },
-      {
-        "name": "L1",
-        "align_B": 0,
-        "cap_KiB": 0
-      },
-      {
-        "name": "L0C",
-        "align_B": 0,
-        "cap_KiB": 0
-      }
-    ],
-    "ICache_KiB": 0,
-    "DCache_KiB": 0,
-    "pipe_ref": 3,
-    "competitor_apis": 0,
-    "quant_baseline_types": "INT4,INT8,FP8,INT2,NF4,BF16_FP8"
+    "AscendC": {
+      "N": "",
+      "Bpeak_GBs": "",
+      "cacheline_B": 64,
+      "tile_min": 8192,
+      "tile_max": 65536,
+      "burst_min": 32,
+      "burst_max": 256,
+      "buffers": [
+        {
+          "name": "UB",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L1",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0A",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0B",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0C",
+          "align_B": "",
+          "cap_KiB": ""
+        }
+      ],
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
+    },
+    "SuperScalar": {
+      "N": "",
+      "Bpeak_GBs": "",
+      "cacheline_B": 64,
+      "tile_min": 8192,
+      "tile_max": 65536,
+      "burst_min": 32,
+      "burst_max": 256,
+      "buffers": [
+        {
+          "name": "UB",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L1",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0A",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0B",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0C",
+          "align_B": "",
+          "cap_KiB": ""
+        }
+      ],
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
+    },
+    "SIMT": {
+      "N": "",
+      "Bpeak_GBs": "",
+      "cacheline_B": 64,
+      "tile_min": 8192,
+      "tile_max": 65536,
+      "burst_min": 32,
+      "burst_max": 256,
+      "buffers": [
+        {
+          "name": "shared",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L2",
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "HBM",
+          "align_B": "",
+          "cap_KiB": ""
+        }
+      ],
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
+    }
   },
   "scores": {
     "1.a.1": {
@@ -1888,6 +2015,606 @@
           "note": "性能提升比需Benchmark对比"
         }
       }
+    }
+  },
+  "operators": [
+    {
+      "id": 1,
+      "pattern": "Elementwise · silu/gelu/add",
+      "op": "gelu/silu/add",
+      "weight": 0.0627,
+      "globs": {
+        "AscendC": [
+          "**/gelu*/op_kernel/**",
+          "**/swi_glu*/op_kernel/**",
+          "**/silu*/**",
+          "**/add*/op_kernel/**",
+          "**/foreach_add*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/solution/**/element*",
+          "**/single_thread/element_wise/**",
+          "**/element_wise/**"
+        ],
+        "SIMT": [
+          "**/*gelu*.cu",
+          "**/*silu*.cu",
+          "**/*elementwise*.cu",
+          "**/*element_wise*.cu"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "pattern": "Broadcast · bias_add",
+      "op": "bias_add",
+      "weight": 0.0206,
+      "globs": {
+        "AscendC": [
+          "**/bias_add*/**",
+          "**/broadcast*/op_kernel/**",
+          "**/add_layer_norm*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/single_thread/broadcast/**",
+          "**/broadcast/**"
+        ],
+        "SIMT": [
+          "**/*broadcast*.cu",
+          "**/*bias_add*.cu"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "pattern": "Reduction · sum/mean/max",
+      "op": "reduce",
+      "weight": 0.0198,
+      "globs": {
+        "AscendC": [
+          "**/reduce*/op_kernel/**",
+          "**/sum*/op_kernel/**",
+          "**/mean*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/single_thread/reduction/**",
+          "**/reduction/**"
+        ],
+        "SIMT": [
+          "**/*reduce*.cu",
+          "**/*reduction*.cu"
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "pattern": "Contraction · matmul/linear",
+      "op": "Matmul,QuantMatmul",
+      "weight": 0.1552,
+      "globs": {
+        "AscendC": [
+          "**/matmul*/op_kernel/**",
+          "**/quant_matmul*/**",
+          "**/batch_mat_mul*/op_kernel/**",
+          "**/transpose_batch_mat_mul*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/solution/matmul_test/**",
+          "**/single_thread/matmul/**",
+          "**/matmul/**"
+        ],
+        "SIMT": [
+          "**/*gemm*.cu",
+          "**/*matmul*.cu",
+          "**/cutlass/**/gemm/**"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "pattern": "ArgReduce · argmax/argmin",
+      "op": "argmax",
+      "weight": 0.0201,
+      "globs": {
+        "AscendC": [
+          "**/argmax*/**",
+          "**/argmin*/**"
+        ],
+        "SuperScalar": [
+          "**/*argmax*",
+          "**/*argmin*"
+        ],
+        "SIMT": [
+          "**/*argmax*.cu",
+          "**/*argmin*.cu"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "pattern": "Layout Transform · View",
+      "op": "ViewCopy",
+      "weight": 0.0395,
+      "globs": {
+        "AscendC": [
+          "**/view_copy*/**",
+          "**/transpose*/op_kernel/**",
+          "**/reshape*/**"
+        ],
+        "SuperScalar": [
+          "**/solution/view_copy/**",
+          "**/single_thread/transpose/**",
+          "**/view_copy/**"
+        ],
+        "SIMT": [
+          "**/*transpose*.cu",
+          "**/*view_copy*.cu",
+          "**/*layout*.cu"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "pattern": "Padding · pad",
+      "op": "padding",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/pad*/op_kernel/**",
+          "**/padding*/**"
+        ],
+        "SuperScalar": [
+          "**/*pad*",
+          "**/padding/**"
+        ],
+        "SIMT": [
+          "**/*pad*.cu"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "pattern": "IndexGather · gather/embedding",
+      "op": "GatherV2",
+      "weight": 0.0228,
+      "globs": {
+        "AscendC": [
+          "**/gather*/op_kernel/**",
+          "**/embedding*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/solution/gather_v2/**",
+          "**/single_thread/gather/**",
+          "**/gather/**"
+        ],
+        "SIMT": [
+          "**/*gather*.cu",
+          "**/*embedding*.cu"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "pattern": "ScatterUpdate · scatter",
+      "op": "scatter",
+      "weight": 0.0197,
+      "globs": {
+        "AscendC": [
+          "**/scatter*/op_kernel/**",
+          "**/index_put*/**"
+        ],
+        "SuperScalar": [
+          "**/concat_scatter*",
+          "**/*scatter*"
+        ],
+        "SIMT": [
+          "**/*scatter*.cu"
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "pattern": "AtomicUpdate · scatter_add",
+      "op": "scatter_add",
+      "weight": 0.0211,
+      "globs": {
+        "AscendC": [
+          "**/inplace_scatter_add*/**",
+          "**/scatter_add*/**",
+          "**/index_add*/**"
+        ],
+        "SuperScalar": [
+          "**/*scatter_add*"
+        ],
+        "SIMT": [
+          "**/*scatter_add*.cu",
+          "**/*atomic*.cu"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "pattern": "Interpolation · grid_sample",
+      "op": "ResizeBilinearV2",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/resize*/**",
+          "**/upsample*/**",
+          "**/grid_sample*/**"
+        ],
+        "SuperScalar": [
+          "**/*resize*",
+          "**/*interp*"
+        ],
+        "SIMT": [
+          "**/*resize*.cu",
+          "**/*upsample*.cu",
+          "**/*grid_sample*.cu"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "pattern": "MaskPredicate · where",
+      "op": "where",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": [
+          "**/where*/op_kernel/**",
+          "**/masked*/**",
+          "**/select*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/*where*",
+          "**/*mask*"
+        ],
+        "SIMT": [
+          "**/*where*.cu",
+          "**/*masked*.cu"
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "pattern": "SortSelect · topk/sort",
+      "op": "topk",
+      "weight": 0.0197,
+      "globs": {
+        "AscendC": [
+          "**/topk*/**",
+          "**/sort*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/single_thread/sort/**",
+          "**/sort/**",
+          "**/topk/**"
+        ],
+        "SIMT": [
+          "**/*topk*.cu",
+          "**/*sort*.cu"
+        ]
+      }
+    },
+    {
+      "id": 14,
+      "pattern": "Histogram · bincount",
+      "op": "bincount",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/histogram*/**",
+          "**/bincount*/**",
+          "**/histc*/**"
+        ],
+        "SuperScalar": [
+          "**/*hist*",
+          "**/*bincount*"
+        ],
+        "SIMT": [
+          "**/*hist*.cu",
+          "**/*bincount*.cu"
+        ]
+      }
+    },
+    {
+      "id": 15,
+      "pattern": "SlidingWindow · conv2d/pool",
+      "op": "Conv2dV2",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": [
+          "**/conv*/op_kernel/**",
+          "**/pool*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/single_thread/conv2d/**",
+          "**/conv2d/**"
+        ],
+        "SIMT": [
+          "**/*conv*.cu",
+          "**/*pool*.cu"
+        ]
+      }
+    },
+    {
+      "id": 16,
+      "pattern": "ControlFlow · cond/while",
+      "op": "ctcloss",
+      "weight": 0.0196,
+      "globs": {
+        "AscendC": [
+          "**/ctc*/**",
+          "**/control/**"
+        ],
+        "SuperScalar": [
+          "**/single_thread/control/**",
+          "**/control/**"
+        ],
+        "SIMT": [
+          "**/*ctc*.cu",
+          "**/*control*.cu"
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "pattern": "Recurrence · cumsum/lstm",
+      "op": "cumsum",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/cumsum*/**",
+          "**/lstm*/**"
+        ],
+        "SuperScalar": [
+          "**/*cumsum*",
+          "**/reduction/**/*cumsum*"
+        ],
+        "SIMT": [
+          "**/*cumsum*.cu",
+          "**/*lstm*.cu"
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "pattern": "MegaKernel · MegaMoe",
+      "op": "MegaMoe",
+      "weight": 0.0433,
+      "globs": {
+        "AscendC": [
+          "**/moe*/op_kernel/**",
+          "**/mega_moe*/**",
+          "**/swiglu_gated_mlp*/**"
+        ],
+        "SuperScalar": [
+          "**/solution/mega_moe/**",
+          "**/solution/group_token*/**",
+          "**/mega_moe/**"
+        ],
+        "SIMT": [
+          "**/*moe*.cu",
+          "**/*mega_moe*.cu"
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "pattern": "Spectral · fft/dct",
+      "op": "fft",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/fft*/**",
+          "**/dct*/**"
+        ],
+        "SuperScalar": [
+          "**/*fft*",
+          "**/*dct*"
+        ],
+        "SIMT": [
+          "**/*fft*.cu",
+          "**/*dct*.cu"
+        ]
+      }
+    },
+    {
+      "id": 20,
+      "pattern": "DynamicShape · 动态batch",
+      "op": "dynamic",
+      "weight": 0.0192,
+      "globs": {
+        "AscendC": [
+          "**/nonzero*/**",
+          "**/unique*/**"
+        ],
+        "SuperScalar": [
+          "**/*dynamic*",
+          "**/*nonzero*"
+        ],
+        "SIMT": [
+          "**/*nonzero*.cu",
+          "**/*unique*.cu"
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "pattern": "RandomSampling · dropout",
+      "op": "dropout",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": [
+          "**/dropout*/**",
+          "**/multinomial*/**"
+        ],
+        "SuperScalar": [
+          "**/*dropout*"
+        ],
+        "SIMT": [
+          "**/*dropout*.cu"
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "pattern": "Norm 类",
+      "op": "RmsNorm,GroupNormGrad",
+      "weight": 0.0303,
+      "globs": {
+        "AscendC": [
+          "**/rms_norm*/op_kernel/**",
+          "**/group_norm*/**",
+          "**/layer_norm*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/solution/normalization/**",
+          "**/single_thread/norm/**",
+          "**/normalization/**"
+        ],
+        "SIMT": [
+          "**/*rms_norm*.cu",
+          "**/*layernorm*.cu",
+          "**/*group_norm*.cu"
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "pattern": "Sparse · sparse.mm",
+      "op": "sparse.mm",
+      "weight": 0.0193,
+      "globs": {
+        "AscendC": [
+          "**/sparse*/**"
+        ],
+        "SuperScalar": [
+          "**/*sparse*"
+        ],
+        "SIMT": [
+          "**/*sparse*.cu",
+          "**/*spmm*.cu"
+        ]
+      }
+    },
+    {
+      "id": 24,
+      "pattern": "Quantization · int8/fp8",
+      "op": "DynamicMxQuant",
+      "weight": 0.0402,
+      "globs": {
+        "AscendC": [
+          "**/dynamic*quant*/**",
+          "**/mx_quant*/**",
+          "**/quant*/op_kernel/**"
+        ],
+        "SuperScalar": [
+          "**/solution/quant/**",
+          "**/quant/**"
+        ],
+        "SIMT": [
+          "**/*quant*.cu",
+          "**/*fp8*.cu"
+        ]
+      }
+    },
+    {
+      "id": 25,
+      "pattern": "CollectiveComm · all_reduce",
+      "op": "dispatch+combine",
+      "weight": 0.0518,
+      "globs": {
+        "AscendC": [
+          "**/moe_distribute*/**",
+          "**/all_reduce*/**",
+          "**/dispatch*/**",
+          "**/combine*/**"
+        ],
+        "SuperScalar": [
+          "**/solution/moe_dispatch/**",
+          "**/solution/moe_combine/**"
+        ],
+        "SIMT": [
+          "**/*all_reduce*.cu",
+          "**/*dispatch*.cu",
+          "**/*combine*.cu"
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "pattern": "FusedComposite · softmax/FA",
+      "op": "QSMLA,QLI",
+      "weight": 0.2211,
+      "globs": {
+        "AscendC": [
+          "**/flash_attention*/op_kernel/**",
+          "**/fused_infer_attention*/**",
+          "**/prompt_flash_attention*/**",
+          "**/incre_flash_attention*/**"
+        ],
+        "SuperScalar": [
+          "**/solution/quant_sparse_flash_mla/**",
+          "**/single_thread/fa/**",
+          "**/fa/**"
+        ],
+        "SIMT": [
+          "**/*flash_attn*.cu",
+          "**/*attention*.cu",
+          "**/*softmax*.cu"
+        ]
+      }
+    }
+  ],
+  "source_roots": {
+    "AscendC": {
+      "repos": [
+        "https://gitcode.com/cann/ops-nn",
+        "https://gitcode.com/cann/ops-math",
+        "https://gitcode.com/cann/ops-transformer"
+      ],
+      "prefer_subdirs": [
+        "op_kernel"
+      ],
+      "extensions": [
+        ".cpp",
+        ".cc",
+        ".c",
+        ".h",
+        ".hpp",
+        ".cce",
+        ".inl"
+      ]
+    },
+    "SuperScalar": {
+      "repos": [
+        "https://github.com/PTO-ISA/SuperNpuBench/tree/ops-20260908/benchmark/one-level-arch/kernels/solution"
+      ],
+      "prefer_subdirs": [
+        "solution",
+        "single_thread"
+      ],
+      "extensions": [
+        ".hpp",
+        ".h",
+        ".cpp",
+        ".cc",
+        ".c"
+      ]
+    },
+    "SIMT": {
+      "repos": [
+        "CUDA (cutlass / cub / custom kernels)"
+      ],
+      "prefer_subdirs": [],
+      "extensions": [
+        ".cu",
+        ".cuh",
+        ".h",
+        ".hpp",
+        ".cpp"
+      ]
     }
   }
 }
