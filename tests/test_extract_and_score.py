@@ -172,5 +172,66 @@ class ScoreIntegrationTests(unittest.TestCase):
         self.assertAlmostEqual(score_1_a_1_op(hw, perf), 10.0)
 
 
+class LocalOpsTests(unittest.TestCase):
+    def test_expand_windows_drive_on_posix(self):
+        import os
+        from local_ops import expand_local_path
+        if os.name == "nt":
+            p = expand_local_path(r"D:\cursor\measure")
+            self.assertIsNotNone(p)
+            return
+        self.assertIsNone(expand_local_path(r"D:\cursor\measure"))
+        self.assertIsNone(expand_local_path("D:/cursor/measure"))
+        self.assertTrue(expand_local_path(str(ROOT / "tests" / "fixtures")).is_dir())
+
+    def test_discover_repo_falls_back_to_fixtures(self):
+        from local_ops import discover_roots, find_cache_root, local_status
+        cache = find_cache_root(ROOT)
+        self.assertTrue((cache / "measure.md").is_file())
+        roots = discover_roots(cache, ROOT)
+        for arch in ("AscendC", "SuperScalar", "SIMT"):
+            p = Path(roots[arch])
+            self.assertTrue(p.is_dir(), arch)
+            self.assertEqual(p.name, "fixtures")
+        st = local_status(ROOT)
+        self.assertTrue(st["exists"]["AscendC"])
+
+    def test_discover_ops_layout(self):
+        import shutil
+        import tempfile
+        from local_ops import discover_roots
+        td = Path(tempfile.mkdtemp())
+        try:
+            (td / "measure.md").write_text("# m\n", encoding="utf-8")
+            (td / "ops-nn" / "gelu" / "op_kernel").mkdir(parents=True)
+            (td / "ops-math").mkdir()
+            sol = td / "SuperNpuBench" / "benchmark" / "one-level-arch" / "kernels" / "solution"
+            sol.mkdir(parents=True)
+            (td / "cuda").mkdir()
+            roots = discover_roots(td, ROOT)
+            self.assertEqual(Path(roots["AscendC"]).resolve(), td.resolve())
+            self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol.resolve())
+            self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "cuda").resolve())
+        finally:
+            shutil.rmtree(td)
+
+    def test_extract_local_cli(self):
+        import subprocess
+        out = ROOT / "tests" / "_tmp_extract_local.json"
+        try:
+            r = subprocess.run(
+                [sys.executable, str(ROOT / "scripts" / "measure.py"), "extract", "--local", "--out", str(out)],
+                cwd=str(ROOT), capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(r.returncode, 0, r.stderr)
+            data = json.loads(out.read_text(encoding="utf-8"))
+            self.assertFalse(data["arches"]["AscendC"]["operators"]["1"]["metrics"]["missing"])
+            self.assertFalse(data["arches"]["SuperScalar"]["operators"]["4"]["metrics"]["missing"])
+            self.assertFalse(data["arches"]["SIMT"]["operators"]["1"]["metrics"]["missing"])
+        finally:
+            if out.exists():
+                out.unlink()
+
+
 if __name__ == "__main__":
     unittest.main()

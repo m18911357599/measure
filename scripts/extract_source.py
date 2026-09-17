@@ -455,6 +455,8 @@ def extract_arch(root: Path, arch: str, operators: dict) -> dict:
 
 
 def extract_all(roots: Dict[str, str], operators_path: Optional[os.PathLike] = None) -> dict:
+    from local_ops import expand_local_path  # local Windows/Linux path helper
+
     operators = load_operators(operators_path)
     out = {
         "version": 1,
@@ -464,7 +466,11 @@ def extract_all(roots: Dict[str, str], operators_path: Optional[os.PathLike] = N
     for arch, path in roots.items():
         if not path:
             continue
-        root = Path(path).expanduser().resolve()
+        root = expand_local_path(str(path))
+        if root is None:
+            root = Path(str(path).replace("\\", "/")).expanduser()
+        if root.exists():
+            root = root.resolve()
         out["arches"][arch] = extract_arch(root, arch, operators)
     return out
 

@@ -1,0 +1,8 @@
+{
+  "cache_root": "D:/cursor/measure",
+  "roots": {
+    "AscendC": "D:/cursor/measure",
+    "SuperScalar": "D:/cursor/measure",
+    "SIMT": "D:/cursor/measure"
+  }
+}

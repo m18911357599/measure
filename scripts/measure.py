@@ -20,6 +20,7 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 
 from extract_source import extract_all, load_operators  # noqa: E402
+from local_ops import discover_roots, expand_local_path, local_status  # noqa: E402
 from score import merge_into_measure_data, score_all  # noqa: E402
 
 
@@ -33,16 +34,23 @@ def _read_json(path: str, default=None):
         return json.load(f)
 
 
-def cmd_extract(args):
+def _roots_from_args(args) -> dict:
+    if getattr(args, "local", False):
+        return discover_roots()
     roots = {}
-    if args.ascendc:
+    if getattr(args, "ascendc", ""):
         roots["AscendC"] = args.ascendc
-    if args.superscalar:
+    if getattr(args, "superscalar", ""):
         roots["SuperScalar"] = args.superscalar
-    if args.simt:
+    if getattr(args, "simt", ""):
         roots["SIMT"] = args.simt
+    return roots
+
+
+def cmd_extract(args):
+    roots = _roots_from_args(args)
     if not roots:
-        raise SystemExit("Need at least one of --ascendc / --superscalar / --simt")
+        raise SystemExit("Need --local or at least one of --ascendc / --superscalar / --simt")
     data = extract_all(roots, args.operators)
     Path(args.out).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"wrote {args.out}")
@@ -89,6 +97,9 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/operators":
             self._json(200, load_operators())
             return
+        if path in ("/api/local", "/api/local-roots"):
+            self._json(200, local_status())
+            return
         if path in ("/", "/index.html"):
             self.path = "/report.html"
         return SimpleHTTPRequestHandler.do_GET(self)
@@ -103,13 +114,25 @@ class Handler(SimpleHTTPRequestHandler):
             self._json(400, {"error": "invalid json"})
             return
         if path == "/api/extract":
-            roots = payload.get("roots") or {}
-            missing = [k for k, v in roots.items() if v and not Path(v).exists()]
+            if payload.get("local"):
+                roots = discover_roots()
+            else:
+                roots = payload.get("roots") or {}
+            missing = []
+            resolved = {}
+            for k, v in roots.items():
+                if not v:
+                    continue
+                p = expand_local_path(str(v))
+                if p is None or not p.exists():
+                    missing.append(k)
+                else:
+                    resolved[k] = str(p)
             if missing:
-                self._json(400, {"error": "path not found", "missing": missing})
+                self._json(400, {"error": "path not found", "missing": missing, "roots": roots})
                 return
             try:
-                data = extract_all({k: v for k, v in roots.items() if v})
+                data = extract_all(resolved)
             except Exception as e:  # noqa: BLE001
                 self._json(500, {"error": str(e)})
                 return
@@ -127,11 +150,45 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 def cmd_serve(args):
+    url = f"http://127.0.0.1:{args.port}/report.html"
     httpd = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    print(f"serving {ROOT} on http://127.0.0.1:{args.port}/report.html")
-    print("POST /api/extract  {roots:{AscendC,SuperScalar,SIMT}}")
+    print(f"serving {ROOT} on {url}")
+    print("GET  /api/local     local cache roots (D:/cursor/measure)")
+    print("POST /api/extract  {local:true} or {roots:{AscendC,SuperScalar,SIMT}}")
     print("POST /api/score    {extract,hw,perf}")
+    if getattr(args, "open_browser", False):
+        import webbrowser
+        webbrowser.open(url)
     httpd.serve_forever()
+
+
+def cmd_local(args):
+    """Run 度量 against the local Cursor cache (D:/cursor/measure)."""
+    st = local_status()
+    print("cache_root:", st["cache_root"])
+    print("repo_root :", st["repo_root"])
+    print("docs      :", st["docs"]["measure_md"])
+    for arch, path in st["roots"].items():
+        mark = "ok" if st["exists"].get(arch) else "missing"
+        print(f"  {arch:12} [{mark}] {path}")
+    if args.extract:
+        out = Path(args.out)
+        data = extract_all(st["roots"])
+        out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"wrote {out}")
+        for arch, blob in data["arches"].items():
+            found = sum(1 for o in blob["operators"].values() if not o["metrics"].get("missing"))
+            print(f"  {arch}: {found}/{len(blob['operators'])} operators with source")
+        if args.score:
+            measure = _read_json(str(ROOT / "measure_data.json"))
+            computed = score_all(data, {}, {}, measure.get("patterns"))
+            Path(args.score_out).write_text(
+                json.dumps(computed, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            print(f"wrote {args.score_out}")
+    if args.serve:
+        args.open_browser = not args.no_open
+        cmd_serve(args)
 
 
 def main(argv=None):
@@ -139,6 +196,7 @@ def main(argv=None):
     sub = p.add_subparsers(dest="cmd", required=True)
 
     e = sub.add_parser("extract", help="Extract source metrics from benchmark trees")
+    e.add_argument("--local", action="store_true", help="Use D:/cursor/measure cache (or tests/fixtures)")
     e.add_argument("--ascendc", default="", help="ops-nn / ops-math / ops-transformer checkout")
     e.add_argument("--superscalar", default="", help="SuperNpuBench kernels/solution (or kernels/) root")
     e.add_argument("--simt", default="", help="CUDA kernel tree")
@@ -157,7 +215,18 @@ def main(argv=None):
 
     v = sub.add_parser("serve", help="HTTP server for report + 度量 API")
     v.add_argument("--port", type=int, default=8000)
+    v.add_argument("--open", dest="open_browser", action="store_true", help="Open report in a browser")
     v.set_defaults(func=cmd_serve)
+
+    loc = sub.add_parser("local", help="Local cache ops at D:/cursor/measure: discover, extract, serve")
+    loc.add_argument("--port", type=int, default=8000)
+    loc.add_argument("--extract", action="store_true", help="Extract from discovered local roots")
+    loc.add_argument("--out", default="extract_result.json")
+    loc.add_argument("--score", action="store_true", help="Also score after extract")
+    loc.add_argument("--score-out", default="computed_scores.json")
+    loc.add_argument("--no-serve", dest="serve", action="store_false", help="Do not start HTTP server")
+    loc.add_argument("--no-open", action="store_true", help="Do not open a browser")
+    loc.set_defaults(func=cmd_local, serve=True, open_browser=False)
 
     args = p.parse_args(argv)
     args.func(args)

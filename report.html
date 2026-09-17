@@ -92,6 +92,7 @@ let EXTRACT=null; // source extract JSON
 let PERF={}; // benchmark perf per arch/op
 let OPERATORS=[];
 let MEASURE_LOG='';
+let LOCAL_INFO=null;
 
 function kindTag(code){
   const k=(window.MeasureLib&&MeasureLib.SOURCE_KIND[code])||'';
@@ -1089,6 +1090,23 @@ function renderPerf(){
 }
 
 function appendLog(msg){MEASURE_LOG+=(msg+'\n'); const el=document.getElementById('mlog'); if(el) el.textContent=MEASURE_LOG;}
+function loadSavedRoots(){try{return JSON.parse(localStorage.getItem('npu_local_roots')||'{}');}catch(e){return{};}}
+function savePathRoots(){
+  const o=loadSavedRoots();
+  for(const v of V){const el=document.getElementById('path_'+v); if(el) o[v]=el.value.trim();}
+  localStorage.setItem('npu_local_roots',JSON.stringify(o));
+}
+function fillPathInputs(){
+  const saved=loadSavedRoots();
+  const sug=(LOCAL_INFO&&LOCAL_INFO.roots)||{};
+  for(const v of V){
+    const el=document.getElementById('path_'+v);
+    if(!el) continue;
+    if(!el.value) el.value=saved[v]||sug[v]||'';
+  }
+  const cacheEl=document.getElementById('local_cache_label');
+  if(cacheEl&&LOCAL_INFO) cacheEl.textContent=LOCAL_INFO.cache_root||LOCAL_INFO.default_cache||'D:/cursor/measure';
+}
 
 function renderMeasure(){
   let h='<h2>度量 · Benchmark 源码提取</h2>';
@@ -1108,11 +1126,14 @@ function renderMeasure(){
   }
   h+=`<button class="btn btn-m" onclick="runBrowserExtract()">运行源码提取</button></div>`;
 
-  h+='<div class="cfg"><h4>2. 或通过本地度量服务提取（python3 scripts/measure.py serve）</h4>';
-  h+='<div class="r"><label>AscendC 路径</label><input class="wide" id="path_AscendC" placeholder="/path/to/ops-nn 或合并根目录"></div>';
-  h+='<div class="r"><label>SuperScalar 路径</label><input class="wide" id="path_SuperScalar" placeholder="/path/to/SuperNpuBench/.../kernels/solution"></div>';
-  h+='<div class="r"><label>SIMT 路径</label><input class="wide" id="path_SIMT" placeholder="/path/to/cuda-kernels"></div>';
-  h+=`<button class="btn btn-m" onclick="runServerExtract()">度量（服务端提取）</button>
+  h+='<div class="cfg"><h4>2. 本地缓存提取（D:/cursor/measure）</h4>';
+  h+='<div class="note">文档与脚本在 Cursor 本地缓存 <code>D:/cursor/measure</code>。本机运行 <code>local_measure.cmd</code> 或 <code>python scripts/measure.py local</code> 后，点「度量（本地缓存）」即可，无需再填路径。</div>';
+  h+=`<div class="note">当前缓存：<span id="local_cache_label">${(LOCAL_INFO&&LOCAL_INFO.cache_root)||'D:/cursor/measure'}</span></div>`;
+  h+='<div class="r"><label>AscendC 路径</label><input class="wide" id="path_AscendC" placeholder="D:/cursor/measure 或 ops-nn 根目录"></div>';
+  h+='<div class="r"><label>SuperScalar 路径</label><input class="wide" id="path_SuperScalar" placeholder="D:/cursor/measure/.../kernels/solution"></div>';
+  h+='<div class="r"><label>SIMT 路径</label><input class="wide" id="path_SIMT" placeholder="D:/cursor/measure 或 CUDA kernels"></div>';
+  h+=`<button class="btn btn-m" onclick="runLocalCacheExtract()">度量（本地缓存）</button>
+      <button class="btn btn-m" onclick="runServerExtract()">按路径提取</button>
       <button class="btn" onclick="importExtractJson()">导入 extract JSON</button>
       <input type="file" id="extractPick" accept=".json" style="display:none" onchange="onExtractFile(this.files[0])">
       </div>`;
@@ -1125,6 +1146,7 @@ function renderMeasure(){
     <button class="btn" onclick="downloadComputed()">导出 computed scores</button>
     </div>
     <div class="log" id="mlog">${MEASURE_LOG||'就绪。'}</div></div>`;
+  setTimeout(fillPathInputs,0);
   return h;
 }
 
@@ -1186,6 +1208,7 @@ async function runBrowserExtract(){
 }
 
 async function runServerExtract(){
+  savePathRoots();
   const roots={};
   for(const v of V){
     const el=document.getElementById('path_'+v);
@@ -1195,9 +1218,26 @@ async function runServerExtract(){
   try{
     const r=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({roots})});
     const js=await r.json();
-    if(!r.ok){appendLog('失败: '+(js.error||r.status));return;}
-    EXTRACT=js; saveExtract(); appendLog('服务端提取完成'); go('measure');
-  }catch(e){appendLog('无法连接度量服务: '+e.message+'（可改用目录选择或 python3 scripts/measure.py serve）');}
+    if(!r.ok){appendLog('失败: '+(js.error||r.status)+' '+(js.missing?JSON.stringify(js.missing):''));return;}
+    EXTRACT=js; saveExtract(); appendLog('本地路径提取完成'); go('measure');
+  }catch(e){appendLog('无法连接本地度量服务: '+e.message+'（在 D:/cursor/measure 运行 local_measure.cmd）');}
+}
+
+async function runLocalCacheExtract(){
+  appendLog('POST /api/extract {local:true}  （使用 D:/cursor/measure 缓存）');
+  try{
+    const r=await fetch('/api/extract',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({local:true})});
+    const js=await r.json();
+    if(!r.ok){appendLog('失败: '+(js.error||r.status)+' '+(js.roots?JSON.stringify(js.roots):''));return;}
+    EXTRACT=js; saveExtract();
+    if(js.arches){
+      for(const v of V){
+        const root=(js.arches[v]||{}).root;
+        if(root) appendLog(v+' root='+root);
+      }
+    }
+    appendLog('本地缓存提取完成'); go('measure');
+  }catch(e){appendLog('无法连接本地度量服务: '+e.message+'（双击 local_measure.cmd 或 python scripts/measure.py local）');}
 }
 
 function importExtractJson(){document.getElementById('extractPick').click();}
@@ -1289,7 +1329,10 @@ fetch('measure_data.json').then(r=>{
     if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
   }catch(e){}
   loadHW();
-  routeFromHash();
+  fetch('/api/local').then(r=>r.ok?r.json():null).then(info=>{
+    if(info) LOCAL_INFO=info;
+    routeFromHash();
+  }).catch(()=>routeFromHash());
 }).catch(e=>{
   var el=document.getElementById('main');
   el.innerHTML='<div class="warn">JSON加载失败: '+e.message+'</div>';
