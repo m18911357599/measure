@@ -19,7 +19,7 @@
       "extensions": [".hpp", ".h", ".cpp", ".cc", ".c"]
     },
     "SIMT": {
-      "repos": ["https://gitcode.com/mlidongfeng/gemm-cuda"],
+      "repos": ["D:/simt", "https://gitcode.com/mlidongfeng/gemm-cuda"],
       "prefer_subdirs": [],
       "extensions": [".cu", ".cuh", ".h", ".hpp", ".cpp"]
     }

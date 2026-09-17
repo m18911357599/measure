@@ -1,9 +1,10 @@
 {
   "version": 1,
-  "source": "https://gitcode.com/mlidongfeng/gemm-cuda",
-  "upstream": "https://gitcode.com/LinPX/gemm-cuda",
-  "dest": "gemm-cuda",
+  "source": "D:/simt",
+  "upstream": "https://gitcode.com/mlidongfeng/gemm-cuda",
+  "dest": "simt",
   "branch": "",
-  "note": "SIMT 26 Pattern 以 gitcode.com/mlidongfeng/gemm-cuda（LinPX/gemm-cuda fork）为准。优先匹配 operators.json 的 SIMT globs；未点名的 GEMM/WMMA 源文件归 #4 Contraction。私有仓需环境变量 GITCODE_TOKEN（gitcode 私人令牌）。",
-  "auth_env": "GITCODE_TOKEN"
+  "note": "SIMT 26 Pattern 优先从本地 D:/simt 导入到仓库 simt/。gitcode.com/mlidongfeng/gemm-cuda 仅在本地目录不存在时作为后备。匹配 operators.json 的 SIMT globs；未点名的 GEMM/WMMA 源文件归 #4 Contraction。",
+  "auth_env": "GITCODE_TOKEN",
+  "local_env": "SIMT_ROOT"
 }

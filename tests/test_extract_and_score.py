@@ -203,9 +203,14 @@ class LocalOpsTests(unittest.TestCase):
         else:
             self.assertEqual(super_p.name, "fixtures")
         simt_p = Path(roots["SIMT"])
-        gemm = ROOT / "gemm-cuda"
-        if gemm.is_dir() and any(gemm.rglob("*.cu")):
-            self.assertEqual(simt_p.name, "gemm-cuda")
+        vendored = None
+        for name in ("simt", "gemm-cuda"):
+            d = ROOT / name
+            if d.is_dir() and any(d.rglob("*.cu")):
+                vendored = name
+                break
+        if vendored:
+            self.assertEqual(simt_p.name, vendored)
         else:
             self.assertEqual(simt_p.name, "fixtures")
         st = local_status(ROOT)
@@ -225,10 +230,11 @@ class LocalOpsTests(unittest.TestCase):
             sol.mkdir(parents=True)
             (td / "cuda").mkdir()
             (td / "gemm-cuda").mkdir()
+            (td / "simt").mkdir()
             roots = discover_roots(td, ROOT)
             self.assertEqual(Path(roots["AscendC"]).resolve(), td.resolve())
             self.assertEqual(Path(roots["SuperScalar"]).resolve(), sol_parent.resolve())
-            self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "gemm-cuda").resolve())
+            self.assertEqual(Path(roots["SIMT"]).resolve(), (td / "simt").resolve())
         finally:
             shutil.rmtree(td)
 
@@ -250,7 +256,7 @@ class LocalOpsTests(unittest.TestCase):
             root_name = Path(data["arches"]["SIMT"]["root"]).name
             if root_name in ("fixtures", "tests"):
                 self.assertIn("1", found)
-            elif root_name == "gemm-cuda":
+            elif root_name in ("gemm-cuda", "simt"):
                 self.assertIn("4", found)
         finally:
             if out.exists():
@@ -365,8 +371,15 @@ class SimtGemmCudaTests(unittest.TestCase):
             (td / "gemm-cuda" / "sgemm.cu").write_text(
                 "__global__ void sgemm() { __syncthreads(); }\n", encoding="utf-8"
             )
+            (td / "simt").mkdir()
+            (td / "simt" / "gelu.cu").write_text(
+                "__global__ void gelu() {}\n", encoding="utf-8"
+            )
+            (td / "simt" / "sgemm.cu").write_text(
+                "__global__ void sgemm() { __syncthreads(); }\n", encoding="utf-8"
+            )
             data = extract_all(
-                {"AscendC": str(td), "SIMT": str(td / "gemm-cuda")},
+                {"AscendC": str(td), "SIMT": str(td / "simt")},
                 ROOT / "scripts" / "operators.json",
             )
             afiles = " ".join(
@@ -382,14 +395,65 @@ class SimtGemmCudaTests(unittest.TestCase):
             shutil.rmtree(td)
 
     def test_simt_extract_from_vendored_gemm_cuda(self):
-        gemm = ROOT / "gemm-cuda"
-        if not gemm.is_dir() or not any(gemm.rglob("*.cu")):
-            self.skipTest("vendored gemm-cuda kernels not present")
+        gemm = None
+        for name in ("simt", "gemm-cuda"):
+            d = ROOT / name
+            if d.is_dir() and any(d.rglob("*.cu")):
+                gemm = d
+                break
+        if gemm is None:
+            self.skipTest("vendored SIMT kernels not present")
         data = extract_all({"SIMT": str(gemm)}, ROOT / "scripts" / "operators.json")
         ops = data["arches"]["SIMT"]["operators"]
         present = [oid for oid, o in ops.items() if not o["metrics"].get("missing")]
-        self.assertTrue(present, "vendored gemm-cuda should match at least one pattern")
+        self.assertTrue(present, "vendored SIMT tree should match at least one pattern")
         self.assertIn("4", present)
+
+    def test_import_simt_local_cli(self):
+        import shutil
+        import tempfile
+        from download_cann_ops import main
+        src = Path(tempfile.mkdtemp())
+        dest = Path(tempfile.mkdtemp())
+        try:
+            (src / "docs").mkdir()
+            (src / "docs" / "readme.md").write_text("# simt\n", encoding="utf-8")
+            (src / "sgemm.cu").write_text(
+                "__global__ void sgemm() { __syncthreads(); cudaMalloc(0,0); }\n",
+                encoding="utf-8",
+            )
+            rc = main([
+                "--skip-cann", "--skip-super",
+                "--simt-local", str(src), "--dest", str(dest),
+            ])
+            self.assertEqual(rc, 0)
+            self.assertTrue((dest / "simt" / "sgemm.cu").is_file())
+            self.assertTrue((dest / "simt" / "docs" / "readme.md").is_file())
+            stamp = json.loads((dest / "simt_ops_downloaded.json").read_text(encoding="utf-8"))
+            self.assertEqual(stamp["status"], "ok")
+            self.assertGreater(stamp["operators"]["4"]["files"], 0)
+        finally:
+            shutil.rmtree(src)
+            shutil.rmtree(dest)
+
+    def test_find_simt_local_env(self):
+        import os
+        import shutil
+        import tempfile
+        from local_ops import find_simt_local_dir
+        td = Path(tempfile.mkdtemp())
+        old = os.environ.get("SIMT_ROOT")
+        try:
+            os.environ["SIMT_ROOT"] = str(td)
+            hit = find_simt_local_dir()
+            self.assertIsNotNone(hit)
+            self.assertEqual(hit.resolve(), td.resolve())
+        finally:
+            if old is None:
+                os.environ.pop("SIMT_ROOT", None)
+            else:
+                os.environ["SIMT_ROOT"] = old
+            shutil.rmtree(td)
 
 
 if __name__ == "__main__":

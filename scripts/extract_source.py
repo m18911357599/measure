@@ -24,10 +24,10 @@ SKIP_DIR_COMMON = {
 # Keep ISA trees from leaking into each other's extract when the root is the repo.
 ISA_SKIP_DIRS = {
     "AscendC": {
-        "SuperNpuBench", "supernpubench", "cuda", "cutlass", "cub", "gemm-cuda",
+        "SuperNpuBench", "supernpubench", "cuda", "cutlass", "cub", "gemm-cuda", "simt",
     },
     "SuperScalar": {
-        "ops-nn", "ops-math", "ops-transformer", "cuda", "cutlass", "cub", "gemm-cuda",
+        "ops-nn", "ops-math", "ops-transformer", "cuda", "cutlass", "cub", "gemm-cuda", "simt",
     },
     "SIMT": {
         "SuperNpuBench", "supernpubench", "ops-nn", "ops-math", "ops-transformer",

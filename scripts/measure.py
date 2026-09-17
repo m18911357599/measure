@@ -64,18 +64,16 @@ def _relativize_extract_roots(extract: dict) -> dict:
             blob["root"] = "." if s in (".", "") else s
         except (ValueError, OSError):
             s = str(raw).replace("\\", "/")
-            marker = "SuperNpuBench/"
-            i = s.find(marker)
-            if i >= 0:
-                blob["root"] = s[i:]
-                continue
-            gi = s.find("gemm-cuda/")
-            if gi >= 0:
-                blob["root"] = s[gi:]
-            elif s.rstrip("/").endswith("gemm-cuda"):
-                blob["root"] = "gemm-cuda"
+            for marker in ("SuperNpuBench/", "gemm-cuda/", "simt/"):
+                i = s.find(marker)
+                if i >= 0:
+                    blob["root"] = s[i:]
+                    break
             else:
-                blob["root"] = s
+                if s.rstrip("/").endswith(("gemm-cuda", "simt")):
+                    blob["root"] = s.rstrip("/").rsplit("/", 1)[-1]
+                else:
+                    blob["root"] = s
     return extract
 
 

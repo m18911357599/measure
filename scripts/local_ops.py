@@ -2,7 +2,7 @@
 """Discover local cache roots for Windows/Linux measure checkouts.
 
 Default cache: D:/cursor/measure (Cursor local workspace). Operator trees
-are optional siblings or subfolders (ops-nn, SuperNpuBench, gemm-cuda). If they
+are optional siblings or subfolders (ops-nn, SuperNpuBench, simt). If they
 are missing, tests/fixtures is used so 度量 still runs on this repo alone.
 """
 from __future__ import annotations
@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Sequence
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CFG_NAME = "measure_local.json"
 DEFAULT_CACHE = "D:/cursor/measure"
+DEFAULT_SIMT_LOCALS = ("D:/simt", "d:/simt")
 
 ASCEND_HINTS = ("ops-nn", "ops-math", "ops-transformer")
 SUPER_HINTS = (
@@ -24,7 +25,7 @@ SUPER_HINTS = (
     "one-level-arch/kernels/solution",
     "kernels/solution",
 )
-SIMT_HINTS = ("gemm-cuda", "cuda", "cutlass", "cub", "cuda-kernels")
+SIMT_HINTS = ("simt", "gemm-cuda", "cuda", "cutlass", "cub", "cuda-kernels")
 
 
 def expand_local_path(raw: Optional[str]) -> Optional[Path]:
@@ -137,6 +138,19 @@ def _find_rel_dir(base: Path, rels: Sequence[str]) -> Optional[Path]:
     return None
 
 
+def find_simt_local_dir() -> Optional[Path]:
+    """Windows/local SIMT tree at D:/simt (or SIMT_ROOT / MEASURE_SIMT)."""
+    for raw in (
+        os.environ.get("SIMT_ROOT"),
+        os.environ.get("MEASURE_SIMT"),
+        *DEFAULT_SIMT_LOCALS,
+    ):
+        p = expand_local_path(raw)
+        if p is not None and p.is_dir():
+            return p
+    return None
+
+
 def discover_roots(cache_root: Optional[Path] = None, repo_root: Optional[Path] = None) -> Dict[str, str]:
     """Return {arch: path} for local extract. Missing trees fall back to fixtures."""
     repo = repo_root or REPO_ROOT
@@ -186,6 +200,8 @@ def discover_roots(cache_root: Optional[Path] = None, repo_root: Optional[Path] 
     simt = configured("SIMT")
     if simt is None:
         simt = _find_named_dir(cache, SIMT_HINTS, 2)
+        if simt is None:
+            simt = find_simt_local_dir()
         if simt is None:
             simt = fixtures or cache
     roots["SIMT"] = str(simt)

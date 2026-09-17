@@ -3,6 +3,6 @@
   "roots": {
     "AscendC": "D:/cursor/measure",
     "SuperScalar": "D:/cursor/measure",
-    "SIMT": "D:/cursor/measure/gemm-cuda"
+    "SIMT": "D:/simt"
   }
 }

@@ -4,10 +4,11 @@
 AscendC: gitcode.com/cann ops-nn / ops-math / ops-transformer
 SuperScalar: github.com/PTO-ISA/SuperNpuBench @ ops-20260908
   benchmark/one-level-arch/kernels/solution (+ single_thread fills)
-SIMT: gitcode.com/mlidongfeng/gemm-cuda (fork of LinPX/gemm-cuda)
+SIMT: local D:/simt (preferred) or gitcode.com/mlidongfeng/gemm-cuda
 
 Default dest: current measure checkout (D:\\cursor\\measure on Windows).
 Private gitcode repos: set GITCODE_TOKEN to a gitcode personal access token.
+Local SIMT: python scripts/download_cann_ops.py --skip-cann --skip-super --simt-local D:/simt
 """
 from __future__ import annotations
 
@@ -19,6 +20,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 MAP_PATH = Path(__file__).resolve().parent / "cann_ops_map.json"
@@ -31,9 +33,10 @@ SUPER_URL = "https://github.com/PTO-ISA/SuperNpuBench.git"
 SUPER_DEST_NAME = "SuperNpuBench"
 SIMT_MAP_PATH = Path(__file__).resolve().parent / "simt_ops_map.json"
 SIMT_URL = "https://gitcode.com/mlidongfeng/gemm-cuda.git"
-SIMT_DEST_NAME = "gemm-cuda"
+SIMT_DEST_NAME = "simt"
+SIMT_LOCAL_DEFAULT = "D:/simt"
 SIMT_SOURCE_EXTS = {".cu", ".cuh", ".h", ".hpp", ".hh", ".cpp", ".cc", ".c", ".inl"}
-SIMT_KEEP_EXTS = SIMT_SOURCE_EXTS | {".txt", ".md", ".cmake", ".py"}
+SIMT_KEEP_EXTS = SIMT_SOURCE_EXTS | {".txt", ".md", ".rst", ".cmake", ".py"}
 SIMT_KEEP_NAMES = {
     "CMakeLists.txt", "Makefile", "LICENSE", "LICENSE.txt", "README.md", "readme.md",
 }
@@ -317,14 +320,25 @@ def _simt_rel_skipped(rel: Path, extra_skip: set) -> bool:
     return any(part in skip or part.startswith(".") for part in parts)
 
 
-def copy_simt_tree(src: Path, dst: Path, include_optional: bool = False) -> int:
-    """Copy CUDA/C++ kernel sources; skip .git/build. Tests/third_party optional."""
+def copy_simt_tree(
+    src: Path,
+    dst: Path,
+    include_optional: bool = False,
+    extra_skip: set | None = None,
+) -> int:
+    """Copy CUDA/C++ kernel sources and docs; skip .git/build.
+
+    extra_skip overrides the default optional skips (tests/docs/third_party).
+    """
     if not src.exists():
         return 0
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir(parents=True, exist_ok=True)
-    extra = set() if include_optional else set(SIMT_OPTIONAL_SKIP)
+    if extra_skip is not None:
+        extra = set(extra_skip)
+    else:
+        extra = set() if include_optional else set(SIMT_OPTIONAL_SKIP)
     n = 0
     for p in src.rglob("*"):
         if not p.is_file():
@@ -349,6 +363,37 @@ def _count_simt_source(root: Path) -> int:
         1 for p in root.rglob("*")
         if p.is_file() and p.suffix.lower() in SIMT_SOURCE_EXTS
     )
+
+
+def vendor_simt_from_local(src: Path, dest_root: Path) -> Path:
+    """Copy D:/simt (or any local folder) into dest/simt for git pull + extract."""
+    dst = dest_root / SIMT_DEST_NAME
+    n = copy_simt_tree(src, dst, extra_skip={"third_party", "3rdparty"})
+    if _count_simt_source(dst) == 0:
+        n = copy_simt_tree(src, dst, extra_skip=set())
+    print(f"imported {n} SIMT files from {src} -> {dst}")
+    return dst
+
+
+def find_simt_local(explicit: str = "") -> Optional[Path]:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from local_ops import expand_local_path  # noqa: WPS433
+
+    cands = []
+    if explicit:
+        cands.append(explicit)
+    else:
+        cands.extend([
+            os.environ.get("SIMT_ROOT") or "",
+            os.environ.get("MEASURE_SIMT") or "",
+            SIMT_LOCAL_DEFAULT,
+            "d:/simt",
+        ])
+    for raw in cands:
+        p = expand_local_path(raw)
+        if p is not None and p.is_dir():
+            return p
+    return None
 
 
 def materialize_simt(clone_root: Path, dest_root: Path) -> Path:
@@ -397,7 +442,7 @@ def map_simt_patterns(simt_root: Path, operators: dict) -> dict:
             "pattern": op.get("pattern"),
             "files": len(rels),
             "present": rels[:20],
-            "missing_note": "" if rels else "no matching SIMT kernel in gemm-cuda",
+            "missing_note": "" if rels else "no matching SIMT kernel in simt/",
         }
 
     leftovers = []
@@ -454,7 +499,16 @@ def main(argv=None):
     ap.add_argument("--tag", default="", help="override CANN git tag/branch")
     ap.add_argument("--skip-cann", action="store_true", help="Do not clone gitcode.com/cann")
     ap.add_argument("--skip-super", action="store_true", help="Do not clone SuperNpuBench")
-    ap.add_argument("--skip-simt", action="store_true", help="Do not clone gitcode.com/mlidongfeng/gemm-cuda")
+    ap.add_argument("--skip-simt", action="store_true", help="Do not import or clone SIMT kernels")
+    ap.add_argument(
+        "--simt-local", default="",
+        help="Import SIMT operators from a local folder (e.g. D:/simt). "
+             "If omitted, D:/simt is used when it exists, else git clone.",
+    )
+    ap.add_argument(
+        "--simt-from-git", action="store_true",
+        help="Clone gitcode.com/mlidongfeng/gemm-cuda even if D:/simt exists",
+    )
     ap.add_argument("--simt-url", default="", help="Override SIMT git URL")
     ap.add_argument("--simt-branch", default="", help="Override SIMT git branch/tag")
     ap.add_argument(
@@ -494,40 +548,59 @@ def main(argv=None):
 
     if not args.skip_simt:
         smap = load_simt_map()
-        url = args.simt_url or SIMT_URL
-        branch = args.simt_branch or smap.get("branch") or ""
-        token = args.gitcode_token or os.environ.get("GITCODE_TOKEN") or os.environ.get("GITCODE_PRIVATE_TOKEN") or ""
-        username = os.environ.get("GITCODE_USERNAME") or "oauth2"
-        simt_work = dest / ".simt-src" / SIMT_DEST_NAME
-        print("simt", url, "branch", branch or "(default)")
-        try:
-            clone_simt(url, simt_work, token=token, username=username, branch=branch)
-        except SimtCloneError as exc:
-            msg = str(exc)
-            print("SIMT clone failed:", msg)
-            if "Authentication failed" in msg or "Access denied" in msg or "could not read Username" in msg or "401" in msg:
-                print(
-                    "https://gitcode.com/mlidongfeng/gemm-cuda is private. "
-                    "Set GITCODE_TOKEN to a gitcode personal access token and retry:\n"
-                    "  python scripts/download_cann_ops.py --skip-cann --skip-super\n"
-                    "Or make the fork public, then rerun the same command."
-                )
-            if args.skip_cann and args.skip_super:
-                rc = 1
-            else:
-                print("continuing without SIMT kernels")
-        else:
-            simt_dst = materialize_simt(simt_work, dest)
-            sys.path.insert(0, str(Path(__file__).resolve().parent))
-            from extract_source import load_operators  # noqa: WPS433
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from extract_source import load_operators  # noqa: WPS433
+
+        def _write_simt(simt_dst: Path, imported_from: str) -> int:
             operators = load_operators()
             tstats = map_simt_patterns(simt_dst, operators)
             write_simt_stamp(dest, smap, tstats, {
                 "status": "ok",
                 "root": SIMT_DEST_NAME,
+                "imported_from": imported_from,
             })
-            if print_stats("SIMT/gemm-cuda", tstats) == 0:
+            return 1 if print_stats("SIMT", tstats) == 0 else 0
+
+        local_src = None
+        if not args.simt_from_git:
+            local_src = find_simt_local(args.simt_local)
+            if args.simt_local and local_src is None:
+                print(f"SIMT local path not found: {args.simt_local}")
+                print("Place kernels at D:/simt or pass --simt-local <dir>.")
                 rc = 1
+            elif local_src is not None:
+                print("simt local", local_src)
+                simt_dst = vendor_simt_from_local(local_src, dest)
+                if _write_simt(simt_dst, str(local_src).replace("\\", "/")):
+                    rc = 1
+
+        if local_src is None and not (args.simt_local and not args.simt_from_git):
+            url = args.simt_url or SIMT_URL
+            branch = args.simt_branch or smap.get("branch") or ""
+            token = args.gitcode_token or os.environ.get("GITCODE_TOKEN") or os.environ.get("GITCODE_PRIVATE_TOKEN") or ""
+            username = os.environ.get("GITCODE_USERNAME") or "oauth2"
+            simt_work = dest / ".simt-src" / SIMT_DEST_NAME
+            print("simt", url, "branch", branch or "(default)")
+            try:
+                clone_simt(url, simt_work, token=token, username=username, branch=branch)
+            except SimtCloneError as exc:
+                msg = str(exc)
+                print("SIMT clone failed:", msg)
+                if "Authentication failed" in msg or "Access denied" in msg or "could not read Username" in msg or "401" in msg:
+                    print(
+                        "gitcode.com/mlidongfeng/gemm-cuda is private. "
+                        "Import local kernels instead:\n"
+                        "  python scripts/download_cann_ops.py --skip-cann --skip-super --simt-local D:/simt\n"
+                        "Or set GITCODE_TOKEN and retry."
+                    )
+                if args.skip_cann and args.skip_super:
+                    rc = 1
+                else:
+                    print("continuing without SIMT kernels")
+            else:
+                simt_dst = materialize_simt(simt_work, dest)
+                if _write_simt(simt_dst, url):
+                    rc = 1
 
     return rc
 
