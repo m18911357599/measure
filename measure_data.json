@@ -838,8 +838,8 @@
   },
   "hw_defaults": {
     "AscendC": {
-      "N": 0,
-      "Bpeak_GBs": 0,
+      "N": "",
+      "Bpeak_GBs": "",
       "cacheline_B": 64,
       "tile_min": 8192,
       "tile_max": 65536,
@@ -848,84 +848,37 @@
       "buffers": [
         {
           "name": "UB",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L1",
-          "align_B": 0,
-          "cap_KiB": 0
-        },
-        {
-          "name": "L0C",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L0A",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L0B",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0C",
+          "align_B": "",
+          "cap_KiB": ""
         }
       ],
-      "ICache_KiB": 0,
-      "DCache_KiB": 0,
-      "pipe_ref": 3,
-      "P_gm2vec": 0,
-      "P_gm2cube": 0,
-      "P_cube2vec": 0,
-      "P_vec2cube": 0,
-      "N_hint": 0,
-      "binary_stack_KiB": 0,
-      "N_api": 0,
-      "N_viol": 0,
-      "N_hw": 0,
-      "N_api_dup": 0,
-      "optional_param_ratio": 0,
-      "N_enum_def": 0,
-      "r_hw": 0,
-      "r_simt": 0,
-      "r_sw": 0,
-      "r_cover": 0,
-      "r_mma": 0,
-      "ulp": 2.0,
-      "c_conv": 0,
-      "round_rtn": 0,
-      "round_sr": 0,
-      "r_ieee": 0,
-      "exc_detected": 0,
-      "exc_defined": 0,
-      "p_det": 0,
-      "p_fn": 0,
-      "p_fp": 0,
-      "p_dup": 0,
-      "p_sdc": 0,
-      "c_acc": 0,
-      "c_comp": 0,
-      "r_root": 0,
-      "bp_supported": 0,
-      "r_loc": 0,
-      "r_pc": 0,
-      "r_halt": 0,
-      "r_obscov": 0,
-      "r_evtcov": 0,
-      "e_rel": 0,
-      "r_loss": 1,
-      "bn_ok": 0,
-      "r_expl": 0,
-      "delta_t": 0,
-      "delta_b": 0,
-      "r_tasklink": 0,
-      "competitor_apis": 0,
-      "quant_baseline_types": "INT4,INT8,FP8,INT2,NF4,BF16_FP8"
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
     },
     "SuperScalar": {
-      "N": 0,
-      "Bpeak_GBs": 0,
+      "N": "",
+      "Bpeak_GBs": "",
       "cacheline_B": 64,
       "tile_min": 8192,
       "tile_max": 65536,
@@ -934,84 +887,37 @@
       "buffers": [
         {
           "name": "UB",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L1",
-          "align_B": 0,
-          "cap_KiB": 0
-        },
-        {
-          "name": "L0C",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L0A",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L0B",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
+        },
+        {
+          "name": "L0C",
+          "align_B": "",
+          "cap_KiB": ""
         }
       ],
-      "ICache_KiB": 0,
-      "DCache_KiB": 0,
-      "pipe_ref": 3,
-      "P_gm2vec": 0,
-      "P_gm2cube": 0,
-      "P_cube2vec": 0,
-      "P_vec2cube": 0,
-      "N_hint": 0,
-      "binary_stack_KiB": 0,
-      "N_api": 0,
-      "N_viol": 0,
-      "N_hw": 0,
-      "N_api_dup": 0,
-      "optional_param_ratio": 0,
-      "N_enum_def": 0,
-      "r_hw": 0,
-      "r_simt": 0,
-      "r_sw": 0,
-      "r_cover": 0,
-      "r_mma": 0,
-      "ulp": 2.0,
-      "c_conv": 0,
-      "round_rtn": 0,
-      "round_sr": 0,
-      "r_ieee": 0,
-      "exc_detected": 0,
-      "exc_defined": 0,
-      "p_det": 0,
-      "p_fn": 0,
-      "p_fp": 0,
-      "p_dup": 0,
-      "p_sdc": 0,
-      "c_acc": 0,
-      "c_comp": 0,
-      "r_root": 0,
-      "bp_supported": 0,
-      "r_loc": 0,
-      "r_pc": 0,
-      "r_halt": 0,
-      "r_obscov": 0,
-      "r_evtcov": 0,
-      "e_rel": 0,
-      "r_loss": 1,
-      "bn_ok": 0,
-      "r_expl": 0,
-      "delta_t": 0,
-      "delta_b": 0,
-      "r_tasklink": 0,
-      "competitor_apis": 0,
-      "quant_baseline_types": "INT4,INT8,FP8,INT2,NF4,BF16_FP8"
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
     },
     "SIMT": {
-      "N": 0,
-      "Bpeak_GBs": 0,
+      "N": "",
+      "Bpeak_GBs": "",
       "cacheline_B": 64,
       "tile_min": 8192,
       "tile_max": 65536,
@@ -1020,70 +926,23 @@
       "buffers": [
         {
           "name": "shared",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "L2",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         },
         {
           "name": "HBM",
-          "align_B": 0,
-          "cap_KiB": 0
+          "align_B": "",
+          "cap_KiB": ""
         }
       ],
-      "ICache_KiB": 0,
-      "DCache_KiB": 0,
-      "pipe_ref": 3,
-      "P_gm2vec": 0,
-      "P_gm2cube": 0,
-      "P_cube2vec": 0,
-      "P_vec2cube": 0,
-      "N_hint": 0,
-      "binary_stack_KiB": 0,
-      "N_api": 0,
-      "N_viol": 0,
-      "N_hw": 0,
-      "N_api_dup": 0,
-      "optional_param_ratio": 0,
-      "N_enum_def": 0,
-      "r_hw": 0,
-      "r_simt": 0,
-      "r_sw": 0,
-      "r_cover": 0,
-      "r_mma": 0,
-      "ulp": 2.0,
-      "c_conv": 0,
-      "round_rtn": 0,
-      "round_sr": 0,
-      "r_ieee": 0,
-      "exc_detected": 0,
-      "exc_defined": 0,
-      "p_det": 0,
-      "p_fn": 0,
-      "p_fp": 0,
-      "p_dup": 0,
-      "p_sdc": 0,
-      "c_acc": 0,
-      "c_comp": 0,
-      "r_root": 0,
-      "bp_supported": 0,
-      "r_loc": 0,
-      "r_pc": 0,
-      "r_halt": 0,
-      "r_obscov": 0,
-      "r_evtcov": 0,
-      "e_rel": 0,
-      "r_loss": 1,
-      "bn_ok": 0,
-      "r_expl": 0,
-      "delta_t": 0,
-      "delta_b": 0,
-      "r_tasklink": 0,
-      "competitor_apis": 0,
-      "quant_baseline_types": "INT4,INT8,FP8,INT2,NF4,BF16_FP8"
+      "ICache_KiB": "",
+      "DCache_KiB": "",
+      "pipe_ref": 3
     }
   },
   "scores": {

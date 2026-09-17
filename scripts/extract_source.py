@@ -204,6 +204,20 @@ def load_operators(path: Optional[os.PathLike] = None) -> dict:
         return json.load(f)
 
 
+def arch_file_ok(path: Path, arch: str) -> bool:
+    name = path.name.lower()
+    suf = path.suffix.lower()
+    if arch != "SIMT" and suf in {".cu", ".cuh"}:
+        return False
+    if arch != "AscendC" and name.startswith("ascendc"):
+        return False
+    if arch != "SuperScalar" and ("superscalar" in name or "supernpu" in name):
+        return False
+    if arch != "SIMT" and name.startswith("simt"):
+        return False
+    return True
+
+
 def _should_skip_dir(name: str) -> bool:
     return name in SKIP_DIR_NAMES or name.startswith(".")
 
@@ -428,7 +442,7 @@ def extract_arch(root: Path, arch: str, operators: dict) -> dict:
             preferred = [f for f in files if any(p in f.parts for p in prefer)]
             if preferred:
                 files = preferred
-        files = [f for f in files if f.suffix.lower() in {e.lower() for e in exts}]
+        files = [f for f in files if f.suffix.lower() in {e.lower() for e in exts} and arch_file_ok(f, arch)]
         metrics = analyze_files(files, arch, root)
         result["operators"][str(op["id"])] = {
             "id": op["id"],

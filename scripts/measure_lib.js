@@ -201,22 +201,33 @@
     catch (e) { return p.toLowerCase().indexOf(glob.replace(/\*/g, "").toLowerCase()) >= 0; }
   }
 
+  function archFileOk(path, arch) {
+    const name = (path.split("/").pop() || "").toLowerCase();
+    const suf = (name.match(/\.[^.]+$/) || [""])[0];
+    if (arch !== "SIMT" && (suf === ".cu" || suf === ".cuh")) return false;
+    if (arch !== "AscendC" && name.indexOf("ascendc") === 0) return false;
+    if (arch !== "SuperScalar" && (name.indexOf("superscalar") >= 0 || name.indexOf("supernpu") >= 0)) return false;
+    if (arch !== "SIMT" && name.indexOf("simt") === 0) return false;
+    return true;
+  }
+
   function assignFiles(fileEntries, operators, arch) {
     const byOp = {};
     (operators || []).forEach(op => { byOp[String(op.id)] = []; });
     fileEntries.forEach(fe => {
-      if (!SRC_EXT.test(fe.name || fe.path || "")) return;
+      const path = (fe.path || fe.name || "").replace(/\\/g, "/");
+      if (!SRC_EXT.test(fe.name || path)) return;
+      if (!archFileOk(path, arch)) return;
       let hit = null;
       for (const op of (operators || [])) {
         const globs = (op.globs && op.globs[arch]) || [];
-        const path = (fe.path || fe.name || "").replace(/\\/g, "/");
         if (globs.some(g => matchGlob(path, g))) { hit = String(op.id); break; }
       }
       if (!hit) {
-        const path = ((fe.path || fe.name || "") + " " + (fe.name || "")).toLowerCase();
+        const hay = (path + " " + (fe.name || "")).toLowerCase();
         for (const op of (operators || [])) {
           const tokens = String(op.op || "").split(/[,/·\s]+/).filter(t => t && t.length >= 3);
-          if (tokens.some(t => path.indexOf(t.toLowerCase()) >= 0)) { hit = String(op.id); break; }
+          if (tokens.some(t => hay.indexOf(t.toLowerCase()) >= 0)) { hit = String(op.id); break; }
         }
       }
       if (hit) byOp[hit].push(fe);
@@ -248,7 +259,23 @@
   }
 
   function present(m) { return m && !m.missing && (m.L_total || 0) > 0; }
-  function hwOf(hw, arch) { return (hw && hw[arch]) ? hw[arch] : (hw || {}); }
+  function hwOf(hw, arch) {
+    const raw = (hw && hw[arch]) ? hw[arch] : (hw || {});
+    const out = {};
+    Object.keys(raw).forEach(k => {
+      if (k === "buffers") return;
+      if (raw[k] === "" || raw[k] == null) return;
+      out[k] = raw[k];
+    });
+    if (Array.isArray(raw.buffers)) {
+      out.buffers = raw.buffers.map(b => {
+        const bb = {};
+        Object.keys(b || {}).forEach(k => { if (b[k] !== "" && b[k] != null) bb[k] = b[k]; });
+        return bb;
+      }).filter(b => b.name || b.align_B != null || b.cap_KiB != null);
+    }
+    return out;
+  }
   function perfOp(perf, arch, oid) { return (((perf || {})[arch] || {})[String(oid)]) || {}; }
   function tier(p, t) { return ((p.tiers || {})[t]) || {}; }
   function opsList(extract, arch) {
@@ -286,11 +313,13 @@
   }
   function s3a1(hw) {
     const bufs = hw.buffers || [];
-    if (!bufs.length) return null;
-    return avg(bufs.map(b => {
-      const s = Number(b.align_B || 0);
-      return s <= 0 ? 10 : lnScore(s, 1, 64);
-    }));
+    const ss = [];
+    bufs.forEach(b => {
+      if (b.align_B == null || b.align_B === "") return;
+      const s = Number(b.align_B);
+      ss.push(s <= 0 ? 10 : lnScore(s, 1, 64));
+    });
+    return ss.length ? avg(ss) : null;
   }
   function s3a2(m, p) {
     if (p.p0 != null && Number(p.p0) >= 0.95) return 10;
@@ -388,13 +417,7 @@
   function s4a1(hw, extract, arch) {
     if (hw.N_api != null && hw.N_viol != null && Number(hw.N_api) > 0)
       return 10 * (1 - Number(hw.N_viol) / Number(hw.N_api));
-    let total = 0, viol = 0;
-    opsList(extract, arch).forEach(op => {
-      if (!present(op.metrics)) return;
-      total += op.metrics.N_api || 0;
-      viol += Math.min(op.metrics.N_api || 0, (op.metrics.L_sync || 0) + (op.metrics.L_intra_sync || 0));
-    });
-    return total > 0 ? 10 * (1 - viol / total) : null;
+    return null;
   }
   function s4a2(hw) {
     if (hw.N_hw == null || hw.N_api_dup == null || !hw.N_hw) return null;
@@ -589,28 +612,22 @@
     return { kind: "computed_scores", scores, by_arch };
   }
 
-  function defaultHw() {
+  function defaultHw(arch) {
+    const buffers = arch === "SIMT" ? [
+      { name: "shared", align_B: "", cap_KiB: "" },
+      { name: "L2", align_B: "", cap_KiB: "" },
+      { name: "HBM", align_B: "", cap_KiB: "" }
+    ] : [
+      { name: "UB", align_B: "", cap_KiB: "" },
+      { name: "L1", align_B: "", cap_KiB: "" },
+      { name: "L0A", align_B: "", cap_KiB: "" },
+      { name: "L0B", align_B: "", cap_KiB: "" },
+      { name: "L0C", align_B: "", cap_KiB: "" }
+    ];
     return {
-      N: 0, Bpeak_GBs: 0, cacheline_B: 64, tile_min: 8192, tile_max: 65536,
-      burst_min: 32, burst_max: 256,
-      buffers: [
-        { name: "UB", align_B: 0, cap_KiB: 0 },
-        { name: "L1", align_B: 0, cap_KiB: 0 },
-        { name: "L0A", align_B: 0, cap_KiB: 0 },
-        { name: "L0B", align_B: 0, cap_KiB: 0 },
-        { name: "L0C", align_B: 0, cap_KiB: 0 }
-      ],
-      ICache_KiB: 0, DCache_KiB: 0, pipe_ref: 3,
-      P_gm2vec: 0, P_gm2cube: 0, P_cube2vec: 0, P_vec2cube: 0,
-      N_hint: 0, binary_stack_KiB: 0,
-      N_api: 0, N_viol: 0, N_hw: 0, N_api_dup: 0,
-      optional_param_ratio: 0, N_enum_def: 0,
-      r_hw: 0, r_simt: 0, r_sw: 0, r_cover: 0,
-      r_mma: 0, ulp: 2, c_conv: 0, round_rtn: 0, round_sr: 0, r_ieee: 0,
-      exc_detected: 0, exc_defined: 0, p_det: 0, p_fn: 0, p_fp: 0, p_dup: 0, p_sdc: 0,
-      c_acc: 0, c_comp: 0, r_root: 0, bp_supported: 0,
-      r_loc: 0, r_pc: 0, r_halt: 0, r_obscov: 0, r_evtcov: 0, e_rel: 0, r_loss: 1,
-      bn_ok: 0, r_expl: 0, delta_t: 0, delta_b: 0, r_tasklink: 0
+      N: "", Bpeak_GBs: "", cacheline_B: 64, tile_min: 8192, tile_max: 65536,
+      burst_min: 32, burst_max: 256, buffers,
+      ICache_KiB: "", DCache_KiB: "", pipe_ref: 3
     };
   }
 

@@ -54,7 +54,7 @@ tr:hover td{filter:brightness(1.1)}
 .drop{border:1px dashed var(--border);border-radius:8px;padding:10px;background:var(--card);margin:6px 0}
 .drop input[type=file]{font-size:11px;color:var(--t2)}
 .log{font-family:ui-monospace,monospace;font-size:10px;max-height:180px;overflow:auto;background:#010409;padding:8px;border-radius:6px;border:1px solid var(--border);white-space:pre-wrap}
-select.inp{width:auto;text-align:left}
+.cfg .r input.wide{width:min(520px,70vw);text-align:left}
 @media(max-width:768px){.scards{grid-template-columns:1fr}}
 </style>
 </head>
@@ -129,7 +129,7 @@ function W(si){return si.weight||0;}
 
 function loadHW(){
   try{
-    const s=localStorage.getItem('npu_hw_v3');
+    const s=localStorage.getItem('npu_hw_v4')||localStorage.getItem('npu_hw_v3');
     if(s){HW=JSON.parse(s);}
     else if(D&&D.hw_defaults){HW=JSON.parse(JSON.stringify(D.hw_defaults));}
     else {HW={};}
@@ -139,12 +139,12 @@ function loadHW(){
       HW={AscendC:JSON.parse(JSON.stringify(flat)),SuperScalar:JSON.parse(JSON.stringify(flat)),SIMT:JSON.parse(JSON.stringify(flat))};
     }
     V.forEach(v=>{
-      if(!HW[v]) HW[v]=(window.MeasureLib?JSON.parse(JSON.stringify(MeasureLib.defaultHw())):{});
+      if(!HW[v]) HW[v]=(window.MeasureLib?JSON.parse(JSON.stringify(MeasureLib.defaultHw(v))):{});
     });
   }catch(e){HW={};}
 }
 function hwOf(ver){return (HW&&HW[ver])?HW[ver]:{};}
-function saveHW(){localStorage.setItem('npu_hw_v3',JSON.stringify(HW));showToast('hwtoast');}
+function saveHW(){localStorage.setItem('npu_hw_v4',JSON.stringify(HW));showToast('hwtoast');}
 
 function loadComputed(){try{COMPUTED=JSON.parse(localStorage.getItem('npu_computed_v1')||'null');}catch(e){COMPUTED=null;}}
 function saveComputed(){localStorage.setItem('npu_computed_v1',JSON.stringify(COMPUTED));}
@@ -908,74 +908,74 @@ function renderHwCfg(){
   for(const v of V) h+=`<button class="btn" style="background:${HW_ARCH===v?VC[v]:'var(--card)'};color:${HW_ARCH===v?'#fff':'var(--t)'}" onclick="HW_ARCH='${v}';go('hwcfg')">${v}</button>`;
   h+='</div>';
   h+=`<div class="cfg"><h4>${HW_ARCH} · 系统规格</h4>`;
-  h+=hwRow('总核心数 N','N',H.N||0);
-  h+=hwRow('峰值带宽 Bpeak','Bpeak_GBs',H.Bpeak_GBs||0,'GB/s');
-  h+=hwRow('Cacheline','cacheline_B',H.cacheline_B||64,'B');
-  h+=hwRow('TileSize 下限/上限','tile_min',H.tile_min||8192,'Byte');
-  h+=hwRow('TileSize 上限','tile_max',H.tile_max||65536,'Byte');
-  h+=hwRow('BurstLen 下限','burst_min',H.burst_min||32,'B');
-  h+=hwRow('BurstLen 上限','burst_max',H.burst_max||256,'B');
+  h+=hwRow('总核心数 N','N',H.N);
+  h+=hwRow('峰值带宽 Bpeak','Bpeak_GBs',H.Bpeak_GBs,'GB/s');
+  h+=hwRow('Cacheline','cacheline_B',H.cacheline_B,'B');
+  h+=hwRow('TileSize 下限/上限','tile_min',H.tile_min,'Byte');
+  h+=hwRow('TileSize 上限','tile_max',H.tile_max,'Byte');
+  h+=hwRow('BurstLen 下限','burst_min',H.burst_min,'B');
+  h+=hwRow('BurstLen 上限','burst_max',H.burst_max,'B');
   h+='</div>';
   h+='<div class="cfg"><h4>内存 Buffer（3.a.1 对齐 / 3.a.4 容量）</h4>';
   (H.buffers||[]).forEach((buf,i)=>{
     h+=`<div style="margin:4px 0"><b style="color:var(--b);font-size:10px">${buf.name||('Buffer '+i)}</b>`;
     h+=hwRow('名称','buffers_'+i+'_name',buf.name||'','');
-    h+=hwRow('对齐粒度','buffers_'+i+'_align',buf.align_B||0,'Byte');
-    h+=hwRow('容量','buffers_'+i+'_cap',buf.cap_KiB||0,'KiB');
+    h+=hwRow('对齐粒度','buffers_'+i+'_align',buf.align_B,'Byte');
+    h+=hwRow('容量','buffers_'+i+'_cap',buf.cap_KiB,'KiB');
     h+='</div>';
   });
-  h+=hwRow('ICache','ICache_KiB',H.ICache_KiB||0,'KiB');
-  h+=hwRow('DCache','DCache_KiB',H.DCache_KiB||0,'KiB');
-  h+=hwRow('二进制+栈','binary_stack_KiB',H.binary_stack_KiB||0,'KiB');
-  h+=hwRow('流水切换上限 Pref','pipe_ref',H.pipe_ref||3,'次');
-  h+=hwRow('GM→Vector 切换','P_gm2vec',H.P_gm2vec||0,'次');
-  h+=hwRow('GM→Cube 切换','P_gm2cube',H.P_gm2cube||0,'次');
-  h+=hwRow('Cube→Vector 切换','P_cube2vec',H.P_cube2vec||0,'次');
-  h+=hwRow('Vector→Cube 切换','P_vec2cube',H.P_vec2cube||0,'次');
-  h+=hwRow('Hint 种类 N_hint','N_hint',H.N_hint||0,'类');
+  h+=hwRow('ICache','ICache_KiB',H.ICache_KiB,'KiB');
+  h+=hwRow('DCache','DCache_KiB',H.DCache_KiB,'KiB');
+  h+=hwRow('二进制+栈','binary_stack_KiB',H.binary_stack_KiB,'KiB');
+  h+=hwRow('流水切换上限 Pref','pipe_ref',H.pipe_ref,'次');
+  h+=hwRow('GM→Vector 切换','P_gm2vec',H.P_gm2vec,'次');
+  h+=hwRow('GM→Cube 切换','P_gm2cube',H.P_gm2cube,'次');
+  h+=hwRow('Cube→Vector 切换','P_cube2vec',H.P_cube2vec,'次');
+  h+=hwRow('Vector→Cube 切换','P_vec2cube',H.P_vec2cube,'次');
+  h+=hwRow('Hint 种类 N_hint','N_hint',H.N_hint,'类');
   h+='</div>';
   h+='<div class="cfg"><h4>计算 ISA / API（4.a / 4.b）</h4>';
-  h+=hwRow('计算 API 总数 N_api','N_api',H.N_api||0);
-  h+=hwRow('原子性违反 API 数','N_viol',H.N_viol||0);
-  h+=hwRow('硬件指令数 N_hw','N_hw',H.N_hw||0);
-  h+=hwRow('一指令多 API 数','N_api_dup',H.N_api_dup||0);
-  h+=hwRow('非必选参数比率','optional_param_ratio',H.optional_param_ratio||0);
-  h+=hwRow('枚举定义总数','N_enum_def',H.N_enum_def||0);
-  h+=hwRow('硬件对齐率 r_hw','r_hw',H.r_hw||0);
-  h+=hwRow('SIMT 对齐率 r_simt','r_simt',H.r_simt||0);
-  h+=hwRow('软件仿真率 r_sw','r_sw',H.r_sw||0);
-  h+=hwRow('cast/atomic 完备度','r_cover',H.r_cover||0);
-  h+=hwRow('MMA 原生支持比','r_mma',H.r_mma||0);
-  h+=hwRow('低bit ULP','ulp',H.ulp||2);
-  h+=hwRow('量化转换次数','c_conv',H.c_conv||0);
-  h+=hwRow('RTN 舍入 0/1','round_rtn',H.round_rtn||0);
-  h+=hwRow('SR 舍入 0/1','round_sr',H.round_sr||0);
-  h+=hwRow('IEEE 兼容比','r_ieee',H.r_ieee||0);
+  h+=hwRow('计算 API 总数 N_api','N_api',H.N_api);
+  h+=hwRow('原子性违反 API 数','N_viol',H.N_viol);
+  h+=hwRow('硬件指令数 N_hw','N_hw',H.N_hw);
+  h+=hwRow('一指令多 API 数','N_api_dup',H.N_api_dup);
+  h+=hwRow('非必选参数比率','optional_param_ratio',H.optional_param_ratio);
+  h+=hwRow('枚举定义总数','N_enum_def',H.N_enum_def);
+  h+=hwRow('硬件对齐率 r_hw','r_hw',H.r_hw);
+  h+=hwRow('SIMT 对齐率 r_simt','r_simt',H.r_simt);
+  h+=hwRow('软件仿真率 r_sw','r_sw',H.r_sw);
+  h+=hwRow('cast/atomic 完备度','r_cover',H.r_cover);
+  h+=hwRow('MMA 原生支持比','r_mma',H.r_mma);
+  h+=hwRow('低bit ULP','ulp',H.ulp);
+  h+=hwRow('量化转换次数','c_conv',H.c_conv);
+  h+=hwRow('RTN 舍入 0/1','round_rtn',H.round_rtn);
+  h+=hwRow('SR 舍入 0/1','round_sr',H.round_sr);
+  h+=hwRow('IEEE 兼容比','r_ieee',H.r_ieee);
   h+='</div>';
   h+='<div class="cfg"><h4>调试调优硬件锚点（7.x）</h4>';
-  h+=hwRow('已检测异常类型','exc_detected',H.exc_detected||0);
-  h+=hwRow('定义异常类型总数','exc_defined',H.exc_defined||0);
-  h+=hwRow('检出率 p_det','p_det',H.p_det||0);
-  h+=hwRow('漏报率 p_fn','p_fn',H.p_fn||0);
-  h+=hwRow('误报率 p_fp','p_fp',H.p_fp||0);
-  h+=hwRow('重复上报率','p_dup',H.p_dup||0);
-  h+=hwRow('SDC 漏检率','p_sdc',H.p_sdc||0);
-  h+=hwRow('上报准确率','c_acc',H.c_acc||0);
-  h+=hwRow('上报完整率','c_comp',H.c_comp||0);
-  h+=hwRow('首因识别率','r_root',H.r_root||0);
-  h+=hwRow('断点类型数 /12','bp_supported',H.bp_supported||0);
-  h+=hwRow('可设位置覆盖率','r_loc',H.r_loc||0);
-  h+=hwRow('PC 定位准确率','r_pc',H.r_pc||0);
-  h+=hwRow('多核暂停一致率','r_halt',H.r_halt||0);
-  h+=hwRow('观测对象覆盖率','r_obscov',H.r_obscov||0);
-  h+=hwRow('事件类型覆盖率','r_evtcov',H.r_evtcov||0);
-  h+=hwRow('指标相对误差','e_rel',H.e_rel||0);
-  h+=hwRow('未丢失记录率','r_loss',H.r_loss==null?1:H.r_loss);
-  h+=hwRow('瓶颈类型数 /9','bn_ok',H.bn_ok||0);
-  h+=hwRow('Stall 解释覆盖率','r_expl',H.r_expl||0);
-  h+=hwRow('观测时间开销','delta_t',H.delta_t||0);
-  h+=hwRow('行为扰动率','delta_b',H.delta_b||0);
-  h+=hwRow('端到端关联率','r_tasklink',H.r_tasklink||0);
+  h+=hwRow('已检测异常类型','exc_detected',H.exc_detected);
+  h+=hwRow('定义异常类型总数','exc_defined',H.exc_defined);
+  h+=hwRow('检出率 p_det','p_det',H.p_det);
+  h+=hwRow('漏报率 p_fn','p_fn',H.p_fn);
+  h+=hwRow('误报率 p_fp','p_fp',H.p_fp);
+  h+=hwRow('重复上报率','p_dup',H.p_dup);
+  h+=hwRow('SDC 漏检率','p_sdc',H.p_sdc);
+  h+=hwRow('上报准确率','c_acc',H.c_acc);
+  h+=hwRow('上报完整率','c_comp',H.c_comp);
+  h+=hwRow('首因识别率','r_root',H.r_root);
+  h+=hwRow('断点类型数 /12','bp_supported',H.bp_supported);
+  h+=hwRow('可设位置覆盖率','r_loc',H.r_loc);
+  h+=hwRow('PC 定位准确率','r_pc',H.r_pc);
+  h+=hwRow('多核暂停一致率','r_halt',H.r_halt);
+  h+=hwRow('观测对象覆盖率','r_obscov',H.r_obscov);
+  h+=hwRow('事件类型覆盖率','r_evtcov',H.r_evtcov);
+  h+=hwRow('指标相对误差','e_rel',H.e_rel);
+  h+=hwRow('未丢失记录率','r_loss',H.r_loss);
+  h+=hwRow('瓶颈类型数 /9','bn_ok',H.bn_ok);
+  h+=hwRow('Stall 解释覆盖率','r_expl',H.r_expl);
+  h+=hwRow('观测时间开销','delta_t',H.delta_t);
+  h+=hwRow('行为扰动率','delta_b',H.delta_b);
+  h+=hwRow('端到端关联率','r_tasklink',H.r_tasklink);
   h+='</div>';
   h+=`<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn" onclick="saveHW()">保存 ${HW_ARCH} 规格</button>
@@ -985,20 +985,22 @@ function renderHwCfg(){
 }
 function hwRow(label,key,val,unit){
   const isName=key.indexOf('_name')>=0;
-  return`<div class="r"><label>${label}</label><input type="${isName?'text':'number'}" value="${val}" onchange="setHwVal('${key}',this.value)" step="any"><span class="note">${unit||''}</span></div>`;
+  const shown=(val===''||val==null)?'':val;
+  return`<div class="r"><label>${label}</label><input type="${isName?'text':'number'}" value="${shown}" onchange="setHwVal('${key}',this.value)" step="any" placeholder="未填不参与计分"><span class="note">${unit||''}</span></div>`;
 }
+function parseHwNum(val){return val===''?'':Number(val);}
 function setHwVal(key,val){
   const H=HW[HW_ARCH]||(HW[HW_ARCH]={});
   const keys=key.split('_');
   if(keys[0]==='buffers'){
     const idx=parseInt(keys[1]);
     if(!H.buffers) H.buffers=[];
-    if(!H.buffers[idx]) H.buffers[idx]={name:'Buffer '+idx,align_B:0,cap_KiB:0};
-    if(keys[2]==='align') H.buffers[idx].align_B=Number(val);
-    else if(keys[2]==='cap') H.buffers[idx].cap_KiB=Number(val);
+    if(!H.buffers[idx]) H.buffers[idx]={name:'Buffer '+idx,align_B:'',cap_KiB:''};
+    if(keys[2]==='align') H.buffers[idx].align_B=parseHwNum(val);
+    else if(keys[2]==='cap') H.buffers[idx].cap_KiB=parseHwNum(val);
     else if(keys[2]==='name') H.buffers[idx].name=val;
   }else{
-    H[key]=val===''?0:Number(val);
+    H[key]=parseHwNum(val);
   }
 }
 
@@ -1107,9 +1109,9 @@ function renderMeasure(){
   h+=`<button class="btn btn-m" onclick="runBrowserExtract()">运行源码提取</button></div>`;
 
   h+='<div class="cfg"><h4>2. 或通过本地度量服务提取（python3 scripts/measure.py serve）</h4>';
-  h+='<div class="r"><label>AscendC 路径</label><input id="path_AscendC" placeholder="/path/to/ops-nn 或合并根目录" style="width:360px"></div>';
-  h+='<div class="r"><label>SuperScalar 路径</label><input id="path_SuperScalar" placeholder="/path/to/SuperNpuBench/.../kernels/solution" style="width:360px"></div>';
-  h+='<div class="r"><label>SIMT 路径</label><input id="path_SIMT" placeholder="/path/to/cuda-kernels" style="width:360px"></div>';
+  h+='<div class="r"><label>AscendC 路径</label><input class="wide" id="path_AscendC" placeholder="/path/to/ops-nn 或合并根目录"></div>';
+  h+='<div class="r"><label>SuperScalar 路径</label><input class="wide" id="path_SuperScalar" placeholder="/path/to/SuperNpuBench/.../kernels/solution"></div>';
+  h+='<div class="r"><label>SIMT 路径</label><input class="wide" id="path_SIMT" placeholder="/path/to/cuda-kernels"></div>';
   h+=`<button class="btn btn-m" onclick="runServerExtract()">度量（服务端提取）</button>
       <button class="btn" onclick="importExtractJson()">导入 extract JSON</button>
       <input type="file" id="extractPick" accept=".json" style="display:none" onchange="onExtractFile(this.files[0])">
@@ -1238,6 +1240,7 @@ function go(page,arg){
   document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('on'));
   const catMap={'系统规格':'cat-system','内存模型':'cat-memory','计算模型':'cat-compute','控制模型':'cat-control','访存模型':'cat-memacc','调试调优':'cat-debug','Agent友好':'cat-agent','开发效率':'cat-dev'};
   let sel=page==='cat'?('#'+(catMap[arg]||'cat-'+arg)):'#'+page;
+  if(location.hash!==sel) history.replaceState(null,'',sel);
   const link=document.querySelector(`.nav a[href="${sel}"]`);
   if(link)link.classList.add('on');
   const m=document.getElementById('main');
@@ -1253,10 +1256,26 @@ function go(page,arg){
   window.scrollTo(0,0);
 }
 
+function routeFromHash(){
+  const h=(location.hash||'#summary').replace('#','');
+  const catFromHash={
+    'cat-system':'系统规格','cat-memory':'内存模型','cat-compute':'计算模型',
+    'cat-control':'控制模型','cat-memacc':'访存模型','cat-debug':'调试调优',
+    'cat-agent':'Agent友好','cat-dev':'开发效率'
+  };
+  if(h==='measure') go('measure');
+  else if(h==='perf') go('perf');
+  else if(h==='hwcfg') go('hwcfg');
+  else if(h==='weights') go('weights');
+  else if(catFromHash[h]) go('cat', catFromHash[h]);
+  else go('summary');
+}
+
 // init
 try{EDITED=JSON.parse(localStorage.getItem('npu_edited')||'{}');}catch(e){EDITED={};}
 loadComputed(); loadExtract(); loadPerf();
 loadHW();
+window.addEventListener('hashchange',()=>{if(D) routeFromHash();});
 
 fetch('measure_data.json').then(r=>{
   if(!r.ok) throw new Error('HTTP '+r.status);
@@ -1270,7 +1289,7 @@ fetch('measure_data.json').then(r=>{
     if(sw.sub_items) for(const si of D.sub_items){if(sw.sub_items[si.code]!==undefined)si.weight=sw.sub_items[si.code];}
   }catch(e){}
   loadHW();
-  go('summary');
+  routeFromHash();
 }).catch(e=>{
   var el=document.getElementById('main');
   el.innerHTML='<div class="warn">JSON加载失败: '+e.message+'</div>';

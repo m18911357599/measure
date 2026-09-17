@@ -73,6 +73,10 @@ class ExtractTests(unittest.TestCase):
         self.assertFalse(s["missing"])
         t = data["arches"]["SIMT"]["operators"]["1"]["metrics"]
         self.assertFalse(t["missing"])
+        # Cross-arch filenames must not leak into the wrong ISA extract.
+        self.assertTrue(data["arches"]["SuperScalar"]["operators"]["1"]["metrics"]["missing"])
+        self.assertTrue(data["arches"]["AscendC"]["operators"]["4"]["metrics"]["missing"])
+        self.assertTrue(data["arches"]["SIMT"]["operators"]["4"]["metrics"]["missing"])
 
 
 class ScoreIntegrationTests(unittest.TestCase):
@@ -134,11 +138,27 @@ class ScoreIntegrationTests(unittest.TestCase):
         computed = score_all(extract, hw, perf, None)
         self.assertIn("1.a.1", computed["scores"])
         self.assertIsNotNone(computed["scores"]["3.a.5"]["AscendC"])
-        self.assertGreater(computed["scores"]["3.a.5"]["AscendC"], 0)
+        self.assertGreaterEqual(computed["scores"]["3.a.5"]["AscendC"], 0)
         self.assertEqual(computed["scores"]["7.a.1"]["AscendC"], 8.0)
         self.assertEqual(computed["scores"]["7.b.1"]["AscendC"], 5.0)
         # p0>=95% → 3.a.2 is 10 for op 1; other ops missing so weighted = 10
         self.assertEqual(computed["scores"]["3.a.2"]["AscendC"], 10.0)
+
+    def test_empty_hw_does_not_score(self):
+        extract = extract_all({"AscendC": str(ROOT / "tests/fixtures")})
+        hw = {
+            "AscendC": {
+                "N": "",
+                "buffers": [{"name": "UB", "align_B": "", "cap_KiB": ""}],
+                "pipe_ref": 3,
+            }
+        }
+        computed = score_all(extract, hw, {}, None)
+        self.assertIsNone(computed["scores"]["3.a.1"]["AscendC"])
+        self.assertIsNone(computed["scores"]["4.a.1"]["AscendC"])
+        self.assertIsNone(computed["scores"]["7.a.1"]["AscendC"])
+        self.assertIsNone(computed["scores"]["7.b.1"]["AscendC"])
+        self.assertIsNotNone(computed["scores"]["3.a.5"]["AscendC"])
 
     def test_bandwidth_formula(self):
         hw = {"N": 64}

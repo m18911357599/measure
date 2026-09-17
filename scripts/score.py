@@ -91,9 +91,22 @@ def _tier(perf_op: dict, tier: str) -> dict:
 def _hw(hw: dict, arch: str) -> dict:
     if not hw:
         return {}
-    if arch in hw and isinstance(hw[arch], dict):
-        return hw[arch]
-    return hw
+    raw = hw[arch] if arch in hw and isinstance(hw[arch], dict) else hw
+    out = {}
+    for k, v in raw.items():
+        if v == "" or v is None:
+            continue
+        out[k] = v
+    if "buffers" in raw and isinstance(raw["buffers"], list):
+        bufs = []
+        for b in raw["buffers"]:
+            if not isinstance(b, dict):
+                continue
+            bb = {bk: bv for bk, bv in b.items() if bv != "" and bv is not None}
+            if bb.get("name") or "align_B" in bb or "cap_KiB" in bb:
+                bufs.append(bb)
+        out["buffers"] = bufs
+    return out
 
 
 def _pat_w(patterns: List[dict], oid: int, cat: str) -> float:
@@ -133,16 +146,17 @@ def score_1_a_1_op(hw: dict, perf_op: dict) -> Optional[float]:
 
 def score_3_a_1(hw: dict) -> Optional[float]:
     bufs = hw.get("buffers") or []
-    if not bufs:
-        s = hw.get("align_B")
-        return None if s is None else ln_score(float(s) if s else 1, 1, 64)
     scores = []
     for b in bufs:
+        if "align_B" not in b:
+            continue
         s = float(b.get("align_B") or 0)
         if s <= 0:
             scores.append(10.0)
         else:
             scores.append(ln_score(s, 1, 64))
+    if not scores:
+        return None
     return avg(scores)
 
 
@@ -304,18 +318,7 @@ def score_4_a_1(hw: dict, extract: dict, arch: str) -> Optional[float]:
     n_viol = hw.get("N_viol")
     if n_api is not None and n_viol is not None and float(n_api) > 0:
         return 10.0 * (1 - float(n_viol) / float(n_api))
-    # fallback: use extracted API counts, treat cluster/sync stateful APIs as violations heuristic
-    total = viol = 0
-    for op in _ops(extract, arch):
-        m = op.get("metrics")
-        if not _present(m):
-            continue
-        n = int(m.get("N_api") or 0)
-        total += n
-        viol += min(n, int(m.get("L_sync") or 0) + int(m.get("L_intra_sync") or 0))
-    if total <= 0:
-        return None
-    return 10.0 * (1 - viol / total)
+    return None
 
 
 def score_4_a_2(hw: dict) -> Optional[float]:
