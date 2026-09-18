@@ -9,6 +9,7 @@
 |---|---|
 | [SOURCE.md](./SOURCE.md) | 源码仓地址与分析用提交 |
 | [MIGRATE_TO_GITHUB_HCCL.md](./MIGRATE_TO_GITHUB_HCCL.md) | 迁入 `m18911357599/hccl`（bundle + 推送步骤） |
+| `scripts/fetch_hccl.sh` | 从 gitcode.com/cann/hccl（及可选 GitHub 工作副本）拉取源码到 `.hccl-src/` |
 | [01-existing-algorithm-framework.md](./01-existing-algorithm-framework.md) | 注册 / 选择 / 执行 / 模板调用链 |
 | [02-algorithm-family-analysis.md](./02-algorithm-family-analysis.md) | 八类算法族现状与重复度 |
 | [03-template-composition-refactor.md](./03-template-composition-refactor.md) | 模板 + 组合重构方案 |
