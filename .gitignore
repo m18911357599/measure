@@ -7,5 +7,3 @@ computed_scores.json
 measure_local.json
 .cann-src/
 .super-src/
-.hccl-src/
-hccl_refactor/build/
